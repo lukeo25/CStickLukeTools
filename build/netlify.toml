@@ -1,8 +1,0 @@
-[build]
-  command = "cd engine && npm install && npm run build && cd .. && npm run build"
-  publish = "build"
-
-[build.environment]
-  NODE_VERSION = "14"
-  GENERATE_SOURCEMAP = "false"
-  CI = "false"
