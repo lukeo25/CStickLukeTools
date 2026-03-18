@@ -1,0 +1,13 @@
+declare enum Arithmetic {
+    infinity = 0,
+    minusInfinity = 1,
+    minusZero = 2
+}
+declare const _default: {
+    type: string;
+    lookup: NumberConstructor;
+    shouldTransform(type: any, value: any): boolean;
+    toSerializable(value: any): Arithmetic;
+    fromSerializable(data: Arithmetic): number;
+};
+export default _default;
