@@ -2089,13 +2089,13 @@ function applyLauncherLayout(btn, cfg) {
 
             var show = false;
 
-            // Show for ANY clip that has a default script with variables
+            // Show for ANY clip that has an update script with variables
             try {
                 var ed = getEditor();
                 var so = getSelectedObject(ed);
                 if (so) {
                     var t = resolveScriptTarget(so);
-                    var ds = t ? s(readDefaultScriptFromTarget(t)) : "";
+                    var ds = t ? s(readUpdateScriptFromTarget(t)) : "";
                     if (ds && ds.trim()) {
                         // Show if the script has any var/let/const declarations
                         if (/(?:^|\n)\s*(?:var|let|const)\s+[a-zA-Z_$]/.test(ds)) show = true;
