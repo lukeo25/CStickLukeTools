@@ -1,3 +1,0 @@
-describe('Wick.FileAsset', function () {
-    
-});
