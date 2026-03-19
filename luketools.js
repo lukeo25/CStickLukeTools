@@ -2496,6 +2496,16 @@ var iframe = document.createElement("iframe"); // FIX
             panel.style.display = "block";
             __LT_positionGameSpritePanel();
 
+            // Always read the CURRENT script fresh from the bridge so applied changes are reflected
+            var freshScript = clipScript;
+            try {
+                var br2 = Bridge;
+                if (br2 && br2.getUpdateScriptOnSelection) {
+                    var fresh = br2.getUpdateScriptOnSelection();
+                    if (fresh && fresh.trim()) freshScript = fresh;
+                }
+            } catch(eFresh) {}
+
             // Pass script and clip name directly into iframe via postMessage
             try {
                 var iframe = document.getElementById(GAMESPRITE_PANEL_IFRAME_ID);
@@ -2505,7 +2515,7 @@ var iframe = document.createElement("iframe"); // FIX
                             iframe.contentWindow.postMessage({
                                 type: "LT_CLIP_DATA",
                                 name: clipName,
-                                script: clipScript
+                                script: freshScript
                             }, "*");
                         } catch(ePM) {}
                     }, 100);
