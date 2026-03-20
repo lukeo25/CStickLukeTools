@@ -2512,13 +2512,22 @@ var iframe = document.createElement("iframe"); // FIX
                 if (iframe && iframe.contentWindow) {
                     setTimeout(function() {
                         try {
+                            // Re-read fresh script at send time in case it changed
+                            var sendScript = freshScript;
+                            try {
+                                var br3 = Bridge;
+                                if (br3 && br3.getUpdateScriptOnSelection) {
+                                    var s3 = br3.getUpdateScriptOnSelection();
+                                    if (s3 && s3.trim()) sendScript = s3;
+                                }
+                            } catch(eS3) {}
                             iframe.contentWindow.postMessage({
                                 type: "LT_CLIP_DATA",
                                 name: clipName,
-                                script: freshScript
+                                script: sendScript
                             }, "*");
                         } catch(ePM) {}
-                    }, 100);
+                    }, 300);
                 }
             } catch(eIframe) {}
         } catch (e) { }
