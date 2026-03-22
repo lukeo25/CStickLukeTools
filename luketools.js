@@ -2220,40 +2220,8 @@ function applyLauncherLayout(btn, cfg) {
     }
 
 function __LT_iconForSelectedType() { // FIX
-        try {
-            var ed = getEditor();
-            var so = getSelectedObject(ed);
-            if (!so) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
-            var t = resolveScriptTarget(so);
-            if (!t) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
-
-            var src = s(readUpdateScriptFromTarget(t));
-            if (!src) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
-
-            // FIX: only switch icon if this selection is a game element
-            var isSolid = (src.indexOf("LT_SOLID") !== -1);
-            var isJump = (src.indexOf("LT_JUMPTHROUGH") !== -1);
-            var isSprite = (src.indexOf("LT_GAME_SPRITE") !== -1);
-
-            if (!(isSolid || isJump || isSprite)) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
-
-            // FIX: try to resolve icon from LukeTools panel config first (same config that drives the LT icon panel)
-            try {
-                var keyList = [];
-                if (isSolid) keyList = ["Solid", "LT_SOLID", "solid"];
-                else if (isJump) keyList = ["JumpThrough", "Jump Through", "LT_JUMPTHROUGH", "jumpthrough"];
-                else if (isSprite) keyList = ["SideRunner", "Side Runner", "GameCharacter", "LT_GAME_SPRITE"];
-
-                var icon = __LT_findIconFromPanelConfig(keyList);
-                if (icon) return icon;
-            } catch (e0) { }
-
-            // FIX: fallback hard map
-            if (isSolid) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/Solid.svg"; // FIX
-            if (isJump) return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/JumpThrough.svg"; // FIX
-            return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
-        } catch (e) { }
-        return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg"; // FIX
+        // Always return the running guy icon regardless of script type
+        return LT_GITHUB_RAW_BASE + "scripts/Panel_SVG/GameCharacter.svg";
     }
 
     function __LT_updateGameSpriteToggleIcon() { // FIX
