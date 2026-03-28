@@ -4372,19 +4372,32 @@ if (data.type === "LukeToolsRunJsonTool") {
     }
 
     function mountLauncherOrObserve() {
-        if (getDockNode()) {
-            ensureLauncher(showPanel);
-            return;
+        // FIX: Periodically check if launcher exists and re-create if missing
+        // This handles the case where Wick rebuilds the DOM when loading a new project
+        function checkAndEnsureLauncher() {
+            var launcher = document.getElementById(LAUNCHER_ID);
+            var dock = getDockNode();
+            if (dock && !launcher) {
+                // Launcher is missing but dock exists - re-create it
+                ensureLauncher(showPanel);
+            }
         }
 
+        if (getDockNode()) {
+            ensureLauncher(showPanel);
+        }
+
+        // FIX: Keep observing for DOM changes that might remove the launcher
         var obs = new MutationObserver(function () {
             if (getDockNode()) {
-                ensureLauncher(showPanel);
-                try { obs.disconnect(); } catch (e) { }
+                checkAndEnsureLauncher();
             }
         });
 
         try { obs.observe(document.documentElement, { childList: true, subtree: true }); } catch (e2) { }
+
+        // FIX: Also use a periodic check as a fallback in case MutationObserver misses something
+        setInterval(checkAndEnsureLauncher, 500);
     }
 
     setTimeout(function () {
