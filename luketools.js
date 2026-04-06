@@ -1,4 +1,4 @@
-// LukeTools v2.8.10 + Bridge - by lukeo25
+// LukeTools v2.8.11 + Bridge - by lukeo25
 // https://github.com/lukeo25/WickTools
 (function () {
     "use strict";
@@ -7,7 +7,7 @@
     var LT_GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lukeo25/WickTools/main/"; // FIX
     var LT_CONFIG_URL = LT_GITHUB_RAW_BASE + "Config.json"; // FIX
 
-    var GUARD = "LukeToolsLocalPanelBridgeLoaded_282";
+    var GUARD = "LukeToolsLocalPanelBridgeLoaded_2811";
     if (window[GUARD]) return;
     window[GUARD] = true;
 
@@ -73,7 +73,7 @@
 
         rt = {
             ok: true,
-            version: "2.8.9",
+            version: "2.8.11",
             killed: false,
             kill: function () {
                 try { this.killed = true; } catch (e1) { }
@@ -3776,24 +3776,31 @@ function removeLauncher() {
             return uniq;
         }
 
-        function autoLoadPanelConfig() { // FIX: try stored JSON, else try multiple candidate URLs
-            var existing = "";
-            try { existing = getStoredPanelConfigText(); } catch (e0) { existing = ""; }
-
-            if (existing && String(existing).trim()) {
-                try { applyPanelConfigText(String(existing)); } catch (e1) { }
-                return;
-            }
-
+        function autoLoadPanelConfig() { // FIX: ALWAYS fetch fresh config, localStorage is fallback only
             var candidates = [];
             try { candidates = getDefaultPanelConfigUrlCandidates(); } catch (e2) { candidates = []; }
 
-            if (!candidates || !candidates.length) return;
+            // FIX: If no URL candidates, fall back to stored config
+            if (!candidates || !candidates.length) {
+                var existing = "";
+                try { existing = getStoredPanelConfigText(); } catch (e0) { existing = ""; }
+                if (existing && String(existing).trim()) {
+                    try { applyPanelConfigText(String(existing)); } catch (e1) { }
+                }
+                return;
+            }
 
             var i = 0;
 
             function tryNext() {
                 if (i >= candidates.length) {
+                    // FIX: All URL fetches failed - fall back to stored config as last resort
+                    var fallback = "";
+                    try { fallback = getStoredPanelConfigText(); } catch (e5) { fallback = ""; }
+                    if (fallback && String(fallback).trim()) {
+                        try { applyPanelConfigText(String(fallback)); } catch (e6) { }
+                        log("[LukeTools] Used cached config (all fetches failed)");
+                    }
                     return;
                 }
 
@@ -3808,6 +3815,7 @@ function removeLauncher() {
                         applyPanelConfigText(String(t));
                         setStoredPanelConfigText(String(t));
                         try { localStorage.setItem("LukeToolsPanelConfigUrl", u); } catch (e3) { }
+                        log("[LukeTools] Loaded fresh config from: " + u);
                     } catch (e4) {
                         // Bad json, continue to next candidate
                         tryNext();
