@@ -1,4 +1,4 @@
-// LukeTools v2.8.10 + Bridge - by lukeo25
+// LukeTools v2.8.11 + Bridge - by lukeo25
 // https://github.com/lukeo25/WickTools
 (function () {
     "use strict";
@@ -7,7 +7,7 @@
     var LT_GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lukeo25/WickTools/main/"; // FIX
     var LT_CONFIG_URL = LT_GITHUB_RAW_BASE + "Config.json"; // FIX
 
-    var GUARD = "LukeToolsLocalPanelBridgeLoaded_282";
+    var GUARD = "LukeToolsLocalPanelBridgeLoaded_2811";
     if (window[GUARD]) return;
     window[GUARD] = true;
 
@@ -73,7 +73,7 @@
 
         rt = {
             ok: true,
-            version: "2.8.9",
+            version: "2.8.11",
             killed: false,
             kill: function () {
                 try { this.killed = true; } catch (e1) { }
@@ -2421,7 +2421,7 @@ var iframe = document.createElement("iframe"); // FIX
             iframe.style.height = "calc(100% - 28px)"; // FIX
             iframe.style.border = "0"; // FIX
             iframe.setAttribute("sandbox", "allow-scripts allow-same-origin"); // FIX
-            iframe.srcdoc = "<!doctype html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Script Variables<\/title>\n<style>\nhtml,body{margin:0;padding:0;background:#111;color:#eaeaea;font-family:Arial,sans-serif;overflow-x:hidden;}\nbody{padding:10px;box-sizing:border-box;}\nh2{font-size:14px;font-weight:700;margin:0 0 4px 0;}\n.sub{font-size:11px;color:#888;margin:0 0 10px 0;}\n#sel{display:inline-block;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);font-size:11px;margin-bottom:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n#vars{display:flex;flex-direction:column;gap:8px;}\n.row{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:8px 10px;}\n.row label{font-size:12px;font-weight:700;display:block;margin-bottom:4px;}\n.row .type{font-size:10px;color:#888;margin-left:4px;font-weight:400;}\n.num-wrap{display:flex;align-items:center;gap:8px;}\n.num-wrap input[type=range]{flex:1;}\n.num-wrap input[type=number]{width:60px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);color:#eee;border-radius:4px;padding:3px 6px;font-size:12px;}\n.str-wrap input[type=text]{width:100%;box-sizing:border-box;background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);color:#eee;border-radius:4px;padding:4px 8px;font-size:12px;}\n.bool-wrap{display:flex;align-items:center;gap:8px;font-size:12px;}\n.bool-wrap input[type=checkbox]{width:16px;height:16px;cursor:pointer;}\n.btnrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}\nbutton{background:rgba(255,255,255,0.10);color:#eee;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:700;}\nbutton:hover{background:rgba(255,255,255,0.18);}\n#applyBtn{background:#1a7a4a;border-color:#1a7a4a;}\n#applyBtn:hover{background:#218f56;}\n#status{margin-top:8px;font-size:11px;color:#8f8;white-space:pre-wrap;min-height:14px;}\n#empty{font-size:12px;color:#666;padding:10px 0;}\n<\/style>\n<\/head>\n<body>\n<h2>Script Variables<\/h2>\n<div id=\"sel\">No selection<\/div>\n<div id=\"vars\"><\/div>\n<div id=\"empty\" style=\"display:none\">No var\/let\/const variables found.<\/div>\n<div class=\"btnrow\">\n  <button id=\"refreshBtn\">Refresh<\/button>\n  <button id=\"applyBtn\">Apply<\/button>\n  <button id=\"closeBtn\">Close<\/button>\n<\/div>\n<div id=\"status\"><\/div>\n<script>\nfunction B(){try{return window.parent&&window.parent.LukeToolsBridge?window.parent.LukeToolsBridge:null;}catch(e){return null;}}\nfunction setStatus(msg,ok){var s=document.getElementById(\'status\');s.textContent=msg;s.style.color=ok===false?\'#f88\':\'#8f8\';}\nvar parsed=[];var scriptSrc=\'\';\nfunction parseVars(src){\n  var results=[];\n  var re=/(?:^|\\n)\\s*(?:var|let|const)\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*=\\s*([^;\\n]+)/g;\n  var m;\n  while((m=re.exec(src))!==null){\n    var name=m[1];var raw=m[2].trim();\n    if(raw.indexOf(\'function\')===0||raw.indexOf(\'{\')===0||raw.indexOf(\'[\')===0) continue;\n    var val=raw.replace(/\\/\\/.*$/,\'\').trim().replace(/;$/,\'\').trim();\n    var type=\'string\';\n    if(val===\'true\'||val===\'false\'){type=\'boolean\';}\n    else if(!isNaN(Number(val))&&val!==\'\'){type=\'number\';}\n    else{val=val.replace(/^[\"\'`]|[\"\'`]$/g,\'\');}\n    results.push({name:name,type:type,rawVal:val,origRaw:m[2].trim()});\n  }\n  return results;\n}\nfunction buildUI(vars){\n  var container=document.getElementById(\'vars\');\n  var empty=document.getElementById(\'empty\');\n  container.innerHTML=\'\';\n  if(!vars||!vars.length){empty.style.display=\'block\';return;}\n  empty.style.display=\'none\';\n  vars.forEach(function(v,i){\n    var row=document.createElement(\'div\');row.className=\'row\';\n    var label=document.createElement(\'label\');label.innerHTML=v.name+\'<span class=\"type\">(\'+v.type+\')<\/span>\';\n    row.appendChild(label);\n    if(v.type===\'number\'){\n      var numVal=Number(v.rawVal);\n      var wrap=document.createElement(\'div\');wrap.className=\'num-wrap\';\n      var slider=document.createElement(\'input\');slider.type=\'range\';\n      var absVal=Math.abs(numVal);\n      var max=absVal<=1?1:absVal<=10?20:absVal<=100?200:absVal*3;\n      var min=numVal<0?-max:0;\n      slider.min=min;slider.max=max;slider.step=absVal<=1?0.01:absVal<=10?0.1:1;slider.value=numVal;\n      slider.setAttribute(\'data-idx\',i);\n      var numInput=document.createElement(\'input\');numInput.type=\'number\';\n      numInput.value=numVal;numInput.step=slider.step;numInput.setAttribute(\'data-idx\',i);\n      slider.addEventListener(\'input\',function(){numInput.value=this.value;parsed[Number(this.getAttribute(\'data-idx\'))].rawVal=this.value;});\n      numInput.addEventListener(\'input\',function(){slider.value=this.value;parsed[Number(this.getAttribute(\'data-idx\'))].rawVal=this.value;});\n      wrap.appendChild(slider);wrap.appendChild(numInput);row.appendChild(wrap);\n    } else if(v.type===\'boolean\'){\n      var wrap=document.createElement(\'div\');wrap.className=\'bool-wrap\';\n      var cb=document.createElement(\'input\');cb.type=\'checkbox\';cb.checked=(v.rawVal===\'true\');cb.setAttribute(\'data-idx\',i);\n      var lbl=document.createElement(\'span\');lbl.textContent=v.rawVal===\'true\'?\'true\':\'false\';\n      cb.addEventListener(\'change\',function(){parsed[Number(this.getAttribute(\'data-idx\'))].rawVal=this.checked?\'true\':\'false\';lbl.textContent=this.checked?\'true\':\'false\';});\n      wrap.appendChild(cb);wrap.appendChild(lbl);row.appendChild(wrap);\n    } else {\n      var wrap=document.createElement(\'div\');wrap.className=\'str-wrap\';\n      var inp=document.createElement(\'input\');inp.type=\'text\';inp.value=v.rawVal;inp.setAttribute(\'data-idx\',i);\n      inp.addEventListener(\'input\',function(){parsed[Number(this.getAttribute(\'data-idx\'))].rawVal=this.value;});\n      wrap.appendChild(inp);row.appendChild(wrap);\n    }\n    container.appendChild(row);\n  });\n}\nfunction escapeRegex(s){return s.replace(/[.*+?^${}()|[\\]\\\\]/g,\'\\\\$&\');}\nfunction refresh(){\n  var br=B();\n  if(!br){setStatus(\'Bridge not found\',false);return;}\n  try{if(br.captureSelectionNow)br.captureSelectionNow();}catch(e){}\n  var name=\'\';\n  try{name=br.getSelectedClipName?br.getSelectedClipName():\'\';}catch(e){}\n  if(!name){document.getElementById(\'sel\').textContent=\'No selection\';document.getElementById(\'vars\').innerHTML=\'\';document.getElementById(\'empty\').style.display=\'block\';setStatus(\'Select a clip then Refresh\',false);return;}\n  document.getElementById(\'sel\').textContent=name;\n  try{scriptSrc=br.getDefaultScriptOnSelection?br.getDefaultScriptOnSelection():\'\';}catch(e){scriptSrc=\'\';}\n  if(!scriptSrc){setStatus(\'No default script on selection\',false);return;}\n  parsed=parseVars(scriptSrc);\n  buildUI(parsed);\n  setStatus(\'Found \'+parsed.length+\' variable\'+(parsed.length===1?\'\':\' s\'),true);\n}\nfunction applyVars(){\n  var br=B();\n  if(!br){setStatus(\'Bridge not found\',false);return;}\n  if(!scriptSrc){setStatus(\'No script loaded\',false);return;}\n  var updated=scriptSrc;\n  parsed.forEach(function(v){\n    var newVal;\n    if(v.type===\'number\'){newVal=String(v.rawVal);}\n    else if(v.type===\'boolean\'){newVal=v.rawVal;}\n    else{var origRaw=v.origRaw||\'\';var q=\'\"\';\n      if(origRaw.charAt(0)===\'\\\'\'){ q=\'\\\'\';}else if(origRaw.charAt(0)===\'`\'){q=\'`\';}\n      newVal=q+v.rawVal+q;\n    }\n    var re=new RegExp(\'((?:^|\\\\n)\\\\s*(?:var|let|const)\\\\s+\'+escapeRegex(v.name)+\'\\\\s*=\\\\s*)([^;\\\\n]+)\');\n    updated=updated.replace(re,function(match,prefix){return prefix+newVal;});\n  });\n  try{if(br.setDefaultScriptOnSelection)br.setDefaultScriptOnSelection(updated);scriptSrc=updated;setStatus(\'Applied!\',true);}\n  catch(e){setStatus(\'Failed: \'+String(e&&e.message?e.message:e),false);}\n}\ndocument.getElementById(\'refreshBtn\').addEventListener(\'click\',refresh);\ndocument.getElementById(\'applyBtn\').addEventListener(\'click\',applyVars);\ndocument.getElementById(\'closeBtn\').addEventListener(\'click\',function(){\n  try{var br=B();if(br&&br.closeGameSpritePanel)br.closeGameSpritePanel();}catch(e){}\n});\nrefresh();\n<\/script>\n<\/body>\n<\/html>\n"; // FIX
+            iframe.srcdoc = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Clip Settings<\/title><style>*{box-sizing:border-box;}html,body{margin:0;padding:0;background:#1c1c22;color:#eaeaea;font-family:Arial,sans-serif;height:100%;overflow:hidden;}#app{display:flex;flex-direction:column;height:100%;}.topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.12);background:rgba(15,15,16,0.96);}.title{font-weight:800;font-size:13px;flex:1;}.sel-pill{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.tabs{flex:0 0 auto;display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.12);background:rgba(10,10,12,0.98);overflow-x:auto;}.tab{padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:rgba(255,255,255,0.5);}.tab.active{color:#eaeaea;border-bottom-color:#21b26b;}.body{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:10px;}.pane{display:none;}.pane.active{display:block;}.row{margin-bottom:10px;}.row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}.lbl{font-size:12px;font-weight:700;}.badge{font-size:12px;font-weight:700;color:#7dd3a8;min-width:40px;text-align:right;}input[type=range]{width:100%;height:6px;accent-color:#21b26b;cursor:pointer;}select{width:100%;background:#1f1f22;color:#eaeaea;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:6px 8px;font-size:12px;}input[type=text]{width:100%;background:#1f1f22;color:#eaeaea;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:6px 8px;font-size:12px;}.footer{flex:0 0 auto;display:flex;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,0.12);}.btn{flex:1;background:#1f1f22;color:#eaeaea;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:7px;cursor:pointer;font-size:12px;font-weight:700;}.btn:hover{background:#27272b;}.btn-apply{background:#1a7a4a;border-color:#1a7a4a;}.btn-apply:hover{background:#218f56;}.status{font-size:11px;padding:0 10px 6px;min-height:16px;}.empty{padding:16px 10px;font-size:12px;color:#666;}<\/style><\/head><body><div id=\"app\"><div class=\"topbar\"><div class=\"title\">Clip Settings<\/div><div id=\"sel\" class=\"sel-pill\">No selection<\/div><\/div><div class=\"tabs\" id=\"tabs\"><\/div><div class=\"body\" id=\"body\"><div class=\"empty\" id=\"empty\">Select a clip with a script<\/div><\/div><div class=\"status\" id=\"status\"><\/div><div class=\"footer\"><button class=\"btn\" id=\"btnRefresh\">Refresh<\/button><button class=\"btn btn-apply\" id=\"btnApply\">Apply<\/button><button class=\"btn\" id=\"btnClose\">Close<\/button><\/div><\/div><script>function getB(){try{if(window.top&&window.top.LukeToolsBridge)return window.top.LukeToolsBridge;}catch(e1){}try{if(window.parent&&window.parent.LukeToolsBridge)return window.parent.LukeToolsBridge;}catch(e2){}return null;}function setStatus(m,ok){var s=document.getElementById('status');s.textContent=m||'';s.style.color=ok===false?'#f88':'#aaa';}var allCfgs=[];var activeTab=0;var scriptSrc='';function parseCfgBlocks(src){if(!src)return[];var blocks=[];try{var _ns=src.indexOf('/* LT_NODEPANEL_START */');var _ne=src.indexOf('/* LT_NODEPANEL_END */');while(_ns!==-1&&_ne!==-1){src=src.slice(0,_ns)+src.slice(_ne+22);_ns=src.indexOf('/* LT_NODEPANEL_START */');_ne=src.indexOf('/* LT_NODEPANEL_END */');}}catch(e){};var re=/var\\s+([A-Z_][A-Z0-9_]*(?:_?CFG|_CONFIG|_PARAMS))\\s*=\\s*(\\{[^}]+\\})/g;var m;while((m=re.exec(src))!==null){var varName=m[1];var jsonStr=m[2];var obj=null;try{obj=JSON.parse(jsonStr);}catch(e){try{var r=jsonStr.replace(/([{,]\\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\\s*:)/g,'$1\\\"$2\\\"$3');obj=JSON.parse(r);}catch(e2){}}if(!obj)continue;var tabLabel=varName;if(obj.type){tabLabel=String(obj.type).replace('LT_','').replace(/_/g,' ');}var controls=[];for(var k in obj){if(!obj.hasOwnProperty(k))continue;if(k==='type')continue;var v=obj[k];var t=typeof v;if(t==='number'){var isF=(String(v).indexOf('.')!==-1);var absV=Math.abs(v);var mn=0,mx=absV<=1?2:absV*3,st=isF?0.01:1;if(k==='phase'){mn=-6.28;mx=6.28;st=0.01;}else if(k==='amp'||k==='amplitude'){mx=Math.max(500,absV*3);st=1;}else if(k==='speed'||k==='rate'){mx=Math.max(10,absV*3);st=isF?0.01:1;}else if(k==='opacity'||k==='alpha'){mx=1;st=0.01;}else if(k==='rotation'||k==='angle'){mx=360;st=1;}else if(k==='gravity'){mx=Math.max(5,absV*3);st=0.01;}else if(k==='jump'){mx=Math.max(20,absV*3);st=0.1;}else if(k==='maxFall'||k==='maxfall'){mx=Math.max(30,absV*3);st=0.1;}controls.push({type:'number',key:k,label:k,val:v,min:mn,max:mx,step:st});}else if(t==='boolean'){controls.push({type:'select',key:k,label:k,val:String(v),options:[{v:'true',l:'on'},{v:'false',l:'off'}]});}else if(t==='string'){controls.push({type:'text',key:k,label:k,val:v});}else if(t==='number'&&(v===0||v===1)){controls.push({type:'select',key:k,label:k,val:String(v),options:[{v:'1',l:'on'},{v:'0',l:'off'}]});}}if(controls.length){var fullMatch='var '+varName+' = '+jsonStr+';';if(src.indexOf(fullMatch)===-1)fullMatch='var '+varName+' = '+jsonStr;blocks.push({varName:varName,label:tabLabel,controls:controls,jsonStr:jsonStr,fullMatch:fullMatch});}}return blocks;}function buildTabs(blocks){var tabsEl=document.getElementById('tabs');tabsEl.innerHTML='';blocks.forEach(function(b,i){var tab=document.createElement('div');tab.className='tab'+(i===activeTab?' active':'');tab.textContent=b.label;tab.setAttribute('data-idx',i);tab.onclick=function(){activeTab=Number(this.getAttribute('data-idx'));buildTabs(allCfgs);buildPanes(allCfgs);};tabsEl.appendChild(tab);});}function buildPanes(blocks){var body=document.getElementById('body');body.innerHTML='';if(!blocks||!blocks.length){var empty=document.createElement('div');empty.className='empty';empty.textContent='No CFG blocks found';body.appendChild(empty);return;}blocks.forEach(function(b,bi){var pane=document.createElement('div');pane.className='pane'+(bi===activeTab?' active':'');pane.setAttribute('data-pane',bi);b.controls.forEach(function(c,ci){var row=document.createElement('div');row.className='row';var top=document.createElement('div');top.className='row-top';var lbl=document.createElement('div');lbl.className='lbl';lbl.textContent=c.label;top.appendChild(lbl);if(c.type==='number'){var badge=document.createElement('div');badge.className='badge';var isF=(String(c.step).indexOf('.')!==-1);badge.textContent=isF?Number(c.val).toFixed(2):String(c.val);top.appendChild(badge);row.appendChild(top);var slider=document.createElement('input');slider.type='range';slider.min=String(c.min);slider.max=String(c.max);slider.step=String(c.step);slider.value=String(c.val);slider.onmousedown=function(ev){ev.stopPropagation();};(function(bIdx,cIdx,s,bdg,fl){s.oninput=function(){var v=parseFloat(s.value);if(!isFinite(v))v=0;allCfgs[bIdx].controls[cIdx].val=v;bdg.textContent=fl?v.toFixed(2):String(Math.round(v));};})(bi,ci,slider,badge,isF);row.appendChild(slider);}else if(c.type==='select'){row.appendChild(top);var sel=document.createElement('select');sel.onmousedown=function(ev){ev.stopPropagation();};(c.options||[]).forEach(function(o){var opt=document.createElement('option');opt.value=o.v;opt.textContent=o.l;if(o.v===String(c.val))opt.selected=true;sel.appendChild(opt);});(function(bIdx,cIdx,s){s.onchange=function(){allCfgs[bIdx].controls[cIdx].val=s.value;};})(bi,ci,sel);row.appendChild(sel);}else{row.appendChild(top);var inp=document.createElement('input');inp.type='text';inp.value=String(c.val);inp.onmousedown=function(ev){ev.stopPropagation();};(function(bIdx,cIdx,s){s.oninput=function(){allCfgs[bIdx].controls[cIdx].val=s.value;};})(bi,ci,inp);row.appendChild(inp);}pane.appendChild(row);});body.appendChild(pane);});}function loadData(name,src){document.getElementById('sel').textContent=name||'Unknown';if(!src){setStatus('No update script found',false);return;}scriptSrc=src;allCfgs=parseCfgBlocks(src);activeTab=0;buildTabs(allCfgs);buildPanes(allCfgs);var total=allCfgs.reduce(function(a,b){return a+b.controls.length;},0);setStatus(allCfgs.length?'Found '+allCfgs.length+' block'+(allCfgs.length===1?'':'s')+', '+total+' variables':'No CFG blocks found',allCfgs.length>0);}window.addEventListener('message',function(e){if(e.data&&e.data.type==='LT_CLIP_DATA'){loadData(e.data.name,e.data.script);}});function refresh(){var br=getB();if(!br){setStatus('Bridge not found',false);return;}try{if(br.captureSelectionNow)br.captureSelectionNow();}catch(e){}var name='';try{name=br.getSelectedClipName?br.getSelectedClipName():'';}catch(e){}if(!name){setStatus('No selection - reopen panel',false);return;}document.getElementById('sel').textContent=name;var src='';try{src=br.getUpdateScriptOnSelection?br.getUpdateScriptOnSelection():'';}catch(e){}if(!src){setStatus('No update script',false);return;}scriptSrc=src;allCfgs=parseCfgBlocks(src);activeTab=0;buildTabs(allCfgs);buildPanes(allCfgs);}function applyVars(){var br=getB();if(!br){setStatus('Bridge not found',false);return;}if(!scriptSrc||!allCfgs.length){setStatus('Nothing to apply',false);return;}var updated=scriptSrc;var changed=false;allCfgs.forEach(function(b){var newObj={};try{var orig=JSON.parse(b.jsonStr);if(orig&&orig.type)newObj.type=orig.type;}catch(e){}b.controls.forEach(function(c){var v=c.val;if(c.type==='number')v=parseFloat(v);else if(c.type==='select'){if(v==='true')v=true;else if(v==='false')v=false;else{var n=Number(v);if(!isNaN(n))v=n;}}newObj[c.key]=v;});var newJson=JSON.stringify(newObj);if(b.fullMatch&&updated.indexOf(b.fullMatch)!==-1){var newLine='var '+b.varName+' = '+newJson+';';updated=updated.split(b.fullMatch).join(newLine);changed=true;}});if(!changed){setStatus('No match found - try Refresh',false);return;}try{if(br.setUpdateScriptOnSelection)br.setUpdateScriptOnSelection(updated);scriptSrc=updated;allCfgs=parseCfgBlocks(updated);setStatus('Applied!');}catch(e){setStatus('Failed: '+e.message,false);}}document.getElementById('btnRefresh').addEventListener('click',refresh);document.getElementById('btnApply').addEventListener('click',applyVars);document.getElementById('btnClose').addEventListener('click',function(){try{var br=getB();if(br&&br.closeGameSpritePanel)br.closeGameSpritePanel();}catch(e){};});<\/script><\/body><\/html>"; // FIX
             panel.appendChild(iframe); // FIX
 
             dock.appendChild(panel); // FIX
@@ -2476,28 +2476,60 @@ var iframe = document.createElement("iframe"); // FIX
 
     function openGameSpritePanel() { // FIX
         try {
-            // FIX: only open when a clip is selected and it is a game element
-            var ok = false;
+            var clipName = "";
+            var clipScript = "";
             try {
                 var ed = getEditor();
                 var so = getSelectedObject(ed);
                 if (so) {
                     var t = resolveScriptTarget(so);
-                    var ss = t ? s(readUpdateScriptFromTarget(t)) : "";
-                    if (ss) {
-                        if (ss.indexOf("LT_GAME_SPRITE") !== -1) ok = true;
-                        if (ss.indexOf("LT_SOLID") !== -1) ok = true;
-                        if (ss.indexOf("LT_JUMPTHROUGH") !== -1) ok = true;
-                    }
+                    clipScript = t ? s(readUpdateScriptFromTarget(t)) : "";
+                    clipName = getObjName(so) || getObjIdentifier(so) || "";
                 }
             } catch (e0) { }
 
-            if (!ok) return; // FIX
+            if (!clipScript || !clipScript.trim()) return; // FIX: only open if clip has a script
+            if (!/(?:^|\n)\s*var\s+[A-Z_][A-Z0-9_]*(?:_CFG|_CONFIG|_PARAMS)\s*=\s*\{/.test(clipScript)) return; // only open for CFG objects
 
             var panel = __LT_createGameSpritePanelIfMissing();
             if (!panel) return;
             panel.style.display = "block";
             __LT_positionGameSpritePanel();
+
+            // Always read the CURRENT script fresh from the bridge so applied changes are reflected
+            var freshScript = clipScript;
+            try {
+                var br2 = Bridge;
+                if (br2 && br2.getUpdateScriptOnSelection) {
+                    var fresh = br2.getUpdateScriptOnSelection();
+                    if (fresh && fresh.trim()) freshScript = fresh;
+                }
+            } catch(eFresh) {}
+
+            // Pass script and clip name directly into iframe via postMessage
+            try {
+                var iframe = document.getElementById(GAMESPRITE_PANEL_IFRAME_ID);
+                if (iframe && iframe.contentWindow) {
+                    setTimeout(function() {
+                        try {
+                            // Re-read fresh script at send time in case it changed
+                            var sendScript = freshScript;
+                            try {
+                                var br3 = Bridge;
+                                if (br3 && br3.getUpdateScriptOnSelection) {
+                                    var s3 = br3.getUpdateScriptOnSelection();
+                                    if (s3 && s3.trim()) sendScript = s3;
+                                }
+                            } catch(eS3) {}
+                            iframe.contentWindow.postMessage({
+                                type: "LT_CLIP_DATA",
+                                name: clipName,
+                                script: sendScript
+                            }, "*");
+                        } catch(ePM) {}
+                    }, 300);
+                }
+            } catch(eIframe) {}
         } catch (e) { }
     }
 
@@ -3744,24 +3776,31 @@ function removeLauncher() {
             return uniq;
         }
 
-        function autoLoadPanelConfig() { // FIX: try stored JSON, else try multiple candidate URLs
-            var existing = "";
-            try { existing = getStoredPanelConfigText(); } catch (e0) { existing = ""; }
-
-            if (existing && String(existing).trim()) {
-                try { applyPanelConfigText(String(existing)); } catch (e1) { }
-                return;
-            }
-
+        function autoLoadPanelConfig() { // FIX: ALWAYS fetch fresh config, localStorage is fallback only
             var candidates = [];
             try { candidates = getDefaultPanelConfigUrlCandidates(); } catch (e2) { candidates = []; }
 
-            if (!candidates || !candidates.length) return;
+            // FIX: If no URL candidates, fall back to stored config
+            if (!candidates || !candidates.length) {
+                var existing = "";
+                try { existing = getStoredPanelConfigText(); } catch (e0) { existing = ""; }
+                if (existing && String(existing).trim()) {
+                    try { applyPanelConfigText(String(existing)); } catch (e1) { }
+                }
+                return;
+            }
 
             var i = 0;
 
             function tryNext() {
                 if (i >= candidates.length) {
+                    // FIX: All URL fetches failed - fall back to stored config as last resort
+                    var fallback = "";
+                    try { fallback = getStoredPanelConfigText(); } catch (e5) { fallback = ""; }
+                    if (fallback && String(fallback).trim()) {
+                        try { applyPanelConfigText(String(fallback)); } catch (e6) { }
+                        log("[LukeTools] Used cached config (all fetches failed)");
+                    }
                     return;
                 }
 
@@ -3776,6 +3815,7 @@ function removeLauncher() {
                         applyPanelConfigText(String(t));
                         setStoredPanelConfigText(String(t));
                         try { localStorage.setItem("LukeToolsPanelConfigUrl", u); } catch (e3) { }
+                        log("[LukeTools] Loaded fresh config from: " + u);
                     } catch (e4) {
                         // Bad json, continue to next candidate
                         tryNext();
@@ -4340,19 +4380,32 @@ if (data.type === "LukeToolsRunJsonTool") {
     }
 
     function mountLauncherOrObserve() {
-        if (getDockNode()) {
-            ensureLauncher(showPanel);
-            return;
+        // FIX: Periodically check if launcher exists and re-create if missing
+        // This handles the case where Wick rebuilds the DOM when loading a new project
+        function checkAndEnsureLauncher() {
+            var launcher = document.getElementById(LAUNCHER_ID);
+            var dock = getDockNode();
+            if (dock && !launcher) {
+                // Launcher is missing but dock exists - re-create it
+                ensureLauncher(showPanel);
+            }
         }
 
+        if (getDockNode()) {
+            ensureLauncher(showPanel);
+        }
+
+        // FIX: Keep observing for DOM changes that might remove the launcher
         var obs = new MutationObserver(function () {
             if (getDockNode()) {
-                ensureLauncher(showPanel);
-                try { obs.disconnect(); } catch (e) { }
+                checkAndEnsureLauncher();
             }
         });
 
         try { obs.observe(document.documentElement, { childList: true, subtree: true }); } catch (e2) { }
+
+        // FIX: Also use a periodic check as a fallback in case MutationObserver misses something
+        setInterval(checkAndEnsureLauncher, 500);
     }
 
     setTimeout(function () {
