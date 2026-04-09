@@ -1,0 +1,950 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PNG Rig Timeline Tool v25</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; padding:0; height:100%; background:#111318; color:#eef2f7; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow-y:auto; }
+  * { box-sizing:border-box; }
+  .wrap { min-height:100%; display:flex; flex-direction:column; overflow-y:auto; }
+  
+  /* Top bar */
+  .top { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,0.02); flex-shrink:0; flex-wrap:wrap; }
+  .title { font-size:14px; font-weight:700; }
+  
+  /* File toolbar */
+  .toolbar { padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(0,0,0,0.15); font-size:11px; flex-shrink:0; }
+  .toolbar input[type="file"] { max-width:120px; font-size:10px; }
+  .toolbar select { padding:4px 6px; font-size:11px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; }
+  
+  /* Mode toolbar */
+  .mode-bar { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:8px 16px; align-items:center; flex-wrap:wrap; flex-shrink:0; }
+  .mode-group { display:flex; gap:4px; align-items:center; }
+  .mode-label { font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; margin-right:4px; }
+  
+  /* Main content */
+  .main { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:120px; }
+  .panel { display:flex; flex-direction:column; min-height:0; }
+  .panel:first-child { border-right:1px solid rgba(255,255,255,0.08); }
+  .panel-header { padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.08); font-size:11px; font-weight:600; background:rgba(255,255,255,0.02); }
+  .panel-list { flex:1 1 auto; overflow:auto; padding:6px 8px; }
+  .item { border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:5px 8px; margin-bottom:4px; background:rgba(255,255,255,0.02); font-size:11px; cursor:pointer; }
+  .item:hover { background:rgba(255,255,255,0.04); }
+  .item.active { border-color:rgba(96,165,250,0.5); background:rgba(96,165,250,0.1); }
+  
+  /* Sliders panel */
+  .sliders { padding:10px 12px; border-top:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.2); flex-shrink:0; }
+  .sliders-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; }
+  .slider-col { display:flex; flex-direction:column; gap:10px; }
+  .slider-col-title { font-size:9px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.5px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:2px; }
+  .ctrl { }
+  .ctrl-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+  .ctrl-label { font-size:10px; color:rgba(255,255,255,0.7); }
+  .ctrl-value { font-size:10px; color:rgba(255,255,255,0.5); font-family:ui-monospace,monospace; }
+  .ctrl input[type="range"] { width:100%; height:4px; margin:0; }
+  .ctrl select { width:100%; padding:3px 5px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; }
+  .ctrl input[type="text"] { width:100%; padding:3px 5px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; }
+  
+  /* Status bar */
+  .statusbar { padding:6px 12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center; font-size:10px; flex-shrink:0; }
+  .status { color:rgba(255,255,255,0.7); }
+  
+  /* Buttons */
+  .btn { appearance:none; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05); color:#eef2f7; border-radius:5px; padding:4px 8px; font-size:10px; cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:rgba(255,255,255,0.1); }
+  .btn.primary { background:rgba(96,165,250,0.2); border-color:rgba(96,165,250,0.4); }
+  .btn.active { background:rgba(52,211,153,0.25); border-color:rgba(52,211,153,0.5); color:#6ee7b7; }
+  .btn:disabled { opacity:0.4; cursor:default; }
+  
+  .row { display:flex; gap:6px; align-items:center; }
+  .small { font-size:9px; opacity:0.6; }
+  .mono { font-family:ui-monospace,monospace; }
+  .color-swatch { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:3px; vertical-align:middle; }
+  .summary { font-size:10px; color:rgba(255,255,255,0.5); }
+  .undo-info { font-size:9px; color:rgba(255,255,255,0.4); }
+  
+  details summary { cursor:pointer; font-size:10px; color:rgba(255,255,255,0.5); }
+  #debugLog { margin-top:4px; width:100%; max-width:280px; height:100px; background:#0a0a0a; color:#aaa; border:1px solid #333; border-radius:4px; padding:4px; font:9px ui-monospace,monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Top bar -->
+  <div class="top">
+    <div class="row">
+      <span class="title">PNG Rig v25</span>
+      <span class="summary" id="summaryText"></span>
+    </div>
+    <div class="row">
+      <button id="btnUndo" class="btn" title="Ctrl+Z">↶</button>
+      <button id="btnRedo" class="btn" title="Ctrl+Y">↷</button>
+      <span id="undoInfo" class="undo-info"></span>
+      <button id="btnSetArea" class="btn">Set Area</button>
+      <button id="btnClearArea" class="btn">Clear</button>
+      <button id="btnCommit" class="btn primary">Stamp</button>
+    </div>
+  </div>
+  
+  <!-- File toolbar -->
+  <div class="toolbar">
+    <select id="scopeSelect"><option value="main">Main Timeline</option><option value="clip">Selected Clip</option></select>
+    <button id="btnRefreshFrames" class="btn">Read Frames</button>
+    <input id="pngInput" type="file" accept="image/png"/>
+    <button id="btnSaveRig" class="btn">Save Rig</button>
+    <input id="rigInput" type="file" accept=".json"/>
+  </div>
+  
+  <!-- Mode toolbar -->
+  <div class="mode-bar">
+    <div class="mode-group">
+      <span class="mode-label">Mode</span>
+      <button id="toolModeRig" class="btn active">Rig</button>
+      <button id="toolModeDeform" class="btn">Deform</button>
+    </div>
+    <div class="mode-group">
+      <span class="mode-label">Bones</span>
+      <button id="modeAddBone" class="btn">Add</button>
+      <button id="modeMoveBone" class="btn active">Move</button>
+    </div>
+    <div class="mode-group">
+      <span class="mode-label">Weights</span>
+      <button id="modeEnvelope" class="btn">Envelope</button>
+      <button id="modeVertexPaint" class="btn">Paint</button>
+    </div>
+    <div class="mode-group">
+      <span class="mode-label">Anim</span>
+      <button id="modeTestDeform" class="btn">Test</button>
+      <button id="modeKey" class="btn">Key</button>
+    </div>
+  </div>
+  
+  <!-- Main: frames and bones -->
+  <div class="main">
+    <div class="panel">
+      <div class="panel-header">Frames</div>
+      <div id="frameList" class="panel-list"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">Bones</div>
+      <div id="boneList" class="panel-list"></div>
+    </div>
+  </div>
+  
+  <!-- Sliders at bottom -->
+  <div class="sliders">
+    <div class="sliders-grid">
+      <div class="slider-col">
+        <div class="slider-col-title">Image &amp; Mesh</div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Fit</span><span class="ctrl-value" id="fitVal">Contain</span></div>
+          <select id="fitMode"><option value="contain">Contain</option><option value="fill">Fill</option><option value="stretch">Stretch</option></select>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Mesh X</span><span class="ctrl-value" id="meshXVal">10</span></div>
+          <input id="meshX" type="range" min="4" max="24" value="10"/>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Mesh Y</span><span class="ctrl-value" id="meshYVal">10</span></div>
+          <input id="meshY" type="range" min="4" max="24" value="10"/>
+        </div>
+      </div>
+      
+      <div class="slider-col">
+        <div class="slider-col-title">Envelope</div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Radius</span><span class="ctrl-value" id="radiusVal">60</span></div>
+          <input id="influenceRadius" type="range" min="10" max="200" value="60"/>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Falloff</span><span class="ctrl-value" id="falloffVal">2.0</span></div>
+          <input id="envelopeFalloff" type="range" min="0.5" max="4" step="0.1" value="2.0"/>
+        </div>
+      </div>
+      
+      <div class="slider-col">
+        <div class="slider-col-title">Bones</div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Default Length</span><span class="ctrl-value" id="boneLenVal">80</span></div>
+          <input id="boneLength" type="range" min="20" max="200" value="80"/>
+        </div>
+      </div>
+      
+      <div class="slider-col">
+        <div class="slider-col-title">Timeline</div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Frame</span><span class="ctrl-value" id="frameVal">1</span></div>
+          <input id="frameSlider" type="range" min="1" max="1" value="1"/>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Name Prefix</span></div>
+          <input id="namePrefix" type="text" value="RigFrame"/>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Status -->
+  <div class="statusbar">
+    <span id="status" class="status">Set area → Load PNG → Add bones → Stamp</span>
+    <details><summary>Debug</summary><textarea id="debugLog" readonly></textarea></details>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const el = {
+    btnSetArea: $('btnSetArea'), btnClearArea: $('btnClearArea'), btnCommit: $('btnCommit'), btnRefreshFrames: $('btnRefreshFrames'),
+    pngInput: $('pngInput'), btnSaveRig: $('btnSaveRig'), rigInput: $('rigInput'), scopeSelect: $('scopeSelect'),
+    fitMode: $('fitMode'), meshX: $('meshX'), meshY: $('meshY'), influenceRadius: $('influenceRadius'), envelopeFalloff: $('envelopeFalloff'),
+    frameSlider: $('frameSlider'), boneLength: $('boneLength'), namePrefix: $('namePrefix'), summaryText: $('summaryText'), 
+    frameList: $('frameList'), boneList: $('boneList'), status: $('status'), debug: $('debugLog'), 
+    fitVal: $('fitVal'), meshXVal: $('meshXVal'), meshYVal: $('meshYVal'), radiusVal: $('radiusVal'), falloffVal: $('falloffVal'), 
+    frameVal: $('frameVal'), boneLenVal: $('boneLenVal'),
+    toolModeRig: $('toolModeRig'), toolModeDeform: $('toolModeDeform'), 
+    modeAddBone: $('modeAddBone'), modeMoveBone: $('modeMoveBone'), 
+    modeEnvelope: $('modeEnvelope'), modeVertexPaint: $('modeVertexPaint'), 
+    modeTestDeform: $('modeTestDeform'), modeKey: $('modeKey'),
+    btnUndo: $('btnUndo'), btnRedo: $('btnRedo'), undoInfo: $('undoInfo')
+  };
+
+  const BONE_COLORS = [
+    '#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3d8', 
+    '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#fdba74', '#fde047'
+  ];
+
+  const state = {
+    toolMode: 'rig', mode: 'move', 
+    areaViewport: null, areaStage: null, 
+    selectionOverlay: null, rigOverlay: null, rigCanvas: null, rigCtx: null,
+    image: null, imageName: '', fittedImageRect: null, mesh: null, 
+    bones: [], keys: {}, frameCount: 1, currentFrame: 1,
+    dragBoneIndex: -1, dragBoneEnd: 'tip', pendingNewBoneIndex: -1, selectedBoneIndex: -1, 
+    scopeInfo: { type: 'main', target: null, frameCount: 1 },
+    vertexWeights: {},
+    hoverPoint: null, hoverBoneIndex: -1,
+    undoStack: [], redoStack: [], maxUndoLevels: 50
+  };
+
+  function log(msg, data) {
+    try {
+      const line = '[' + new Date().toISOString().slice(11,19) + '] ' + msg;
+      el.debug.value += line + (data !== undefined ? ' ' + JSON.stringify(data) : '') + '\n';
+      el.debug.scrollTop = el.debug.scrollHeight;
+    } catch (_) {}
+  }
+
+  // ==================== UNDO/REDO ====================
+  
+  function captureState() {
+    return JSON.stringify({ bones: state.bones, keys: state.keys, vertexWeights: state.vertexWeights, selectedBoneIndex: state.selectedBoneIndex });
+  }
+
+  function restoreState(snapshot) {
+    try {
+      const d = JSON.parse(snapshot);
+      state.bones = d.bones || []; state.keys = d.keys || {}; state.vertexWeights = d.vertexWeights || {}; state.selectedBoneIndex = d.selectedBoneIndex ?? -1;
+      ensureBoneEnvelopeDefaults(); renderBoneList(); renderFrameList(); renderRigOverlay(); refreshLabels();
+    } catch (_) {}
+  }
+
+  function pushUndo(name) {
+    state.undoStack.push({ name, snapshot: captureState() });
+    if (state.undoStack.length > state.maxUndoLevels) state.undoStack.shift();
+    state.redoStack = [];
+    updateUndoInfo();
+  }
+
+  function undo() {
+    if (state.undoStack.length < 2) return setStatus('Nothing to undo');
+    const cur = state.undoStack.pop();
+    state.redoStack.push(cur);
+    restoreState(state.undoStack[state.undoStack.length - 1].snapshot);
+    setStatus('Undid: ' + cur.name);
+    updateUndoInfo();
+  }
+
+  function redo() {
+    if (!state.redoStack.length) return setStatus('Nothing to redo');
+    const next = state.redoStack.pop();
+    state.undoStack.push(next);
+    restoreState(next.snapshot);
+    setStatus('Redid: ' + next.name);
+    updateUndoInfo();
+  }
+
+  function updateUndoInfo() {
+    el.undoInfo.textContent = (state.undoStack.length - 1) + '/' + state.redoStack.length;
+    el.btnUndo.disabled = state.undoStack.length < 2;
+    el.btnRedo.disabled = !state.redoStack.length;
+  }
+
+  function initUndoStack() {
+    state.undoStack = [{ name: 'Initial', snapshot: captureState() }];
+    state.redoStack = [];
+    updateUndoInfo();
+  }
+
+  // ==================== HELPERS ====================
+
+  function setStatus(msg) { el.status.textContent = msg || ''; }
+  function num(v, fb) { const n = Number(v); return Number.isFinite(n) ? n : fb; }
+  function dist(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
+  function getBoneTip(p) { return { x: p.x + Math.cos(p.angle) * p.length, y: p.y + Math.sin(p.angle) * p.length }; }
+  function ensureKeyframe(frame) { const id = String(frame); if (!state.keys[id]) state.keys[id] = {}; return state.keys[id]; }
+  function getBoneColor(i) { return BONE_COLORS[i % BONE_COLORS.length]; }
+
+  function getSettings() {
+    return {
+      fitMode: el.fitMode.value || 'contain',
+      meshX: Math.max(2, num(el.meshX.value, 10)),
+      meshY: Math.max(2, num(el.meshY.value, 10)),
+      radius: Math.max(10, num(el.influenceRadius.value, 60)),
+      falloff: Math.max(0.1, num(el.envelopeFalloff.value, 2)),
+      boneLength: Math.max(5, num(el.boneLength.value, 80)),
+      namePrefix: el.namePrefix.value || 'RigFrame'
+    };
+  }
+
+  function refreshLabels() {
+    const s = getSettings();
+    el.fitVal.textContent = el.fitMode.options[el.fitMode.selectedIndex].text;
+    el.meshXVal.textContent = s.meshX;
+    el.meshYVal.textContent = s.meshY;
+    el.radiusVal.textContent = s.radius;
+    el.falloffVal.textContent = s.falloff.toFixed(1);
+    el.frameVal.textContent = state.currentFrame;
+    el.boneLenVal.textContent = s.boneLength;
+    el.summaryText.textContent = (state.areaStage ? '✓Area' : 'No area') + ' • ' + (state.image ? state.imageName.slice(0,12) : 'No PNG') + ' • ' + state.bones.length + 'b • ' + state.frameCount + 'f';
+    el.frameSlider.max = Math.max(1, state.frameCount);
+    el.frameSlider.value = Math.min(state.currentFrame, state.frameCount);
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    el.toolModeRig.classList.toggle('active', state.toolMode === 'rig');
+    el.toolModeDeform.classList.toggle('active', state.toolMode === 'deform');
+    el.modeAddBone.classList.toggle('active', mode === 'add');
+    el.modeMoveBone.classList.toggle('active', mode === 'move');
+    el.modeEnvelope.classList.toggle('active', mode === 'envelope');
+    el.modeVertexPaint.classList.toggle('active', mode === 'vertexPaint');
+    el.modeTestDeform.classList.toggle('active', mode === 'test');
+    el.modeKey.classList.toggle('active', mode === 'key');
+    refreshLabels(); renderRigOverlay();
+  }
+
+  function setToolMode(mode) {
+    state.toolMode = mode === 'deform' ? 'deform' : 'rig';
+    if (state.toolMode === 'rig' && (state.mode === 'test' || state.mode === 'key')) state.mode = 'move';
+    if (state.toolMode === 'deform' && (state.mode === 'add' || state.mode === 'vertexPaint')) state.mode = 'move';
+    setMode(state.mode);
+  }
+
+  // ==================== EDITOR ====================
+
+  function getEditor() {
+    const p = window.parent;
+    if (!p) return null;
+    try {
+      if (p.wickEditor?.project) return p.wickEditor;
+      if (p.wickEditor?.editor?.project) return p.wickEditor.editor;
+      if (p.WickEditor?.editor?.project) return p.WickEditor.editor;
+      if (p.editor?.project) return p.editor;
+      if (p.app?.project) return p.app;
+      if (p.app?.editor?.project) return p.app.editor;
+    } catch (_) {}
+    return null;
+  }
+
+  function getSelectedClip(editor) {
+    try {
+      const arr = editor?.selection?.selectedObjects || editor?.project?.selection?.selectedObjects || [];
+      if (arr.length && (arr[0]?.classname === 'Clip' || arr[0]?.timeline)) return arr[0];
+    } catch (_) {}
+    return null;
+  }
+
+  function estimateFrameCount(tl) {
+    let max = 1;
+    try {
+      for (const layer of (tl?.layers || [])) {
+        for (const fr of (layer?.frames || [])) {
+          const end = Number(fr?.end ?? fr?.endFrame ?? fr?.start ?? 1);
+          if (end > max) max = end;
+        }
+      }
+    } catch (_) {}
+    return max;
+  }
+
+  function readFramesFromScope() {
+    const editor = getEditor();
+    if (!editor?.project) return setStatus('Editor not found');
+    const clip = el.scopeSelect.value === 'clip' ? getSelectedClip(editor) : null;
+    if (clip?.timeline) {
+      state.scopeInfo = { type: 'clip', target: clip, frameCount: estimateFrameCount(clip.timeline) };
+    } else {
+      const tl = editor.project.activeTimeline || editor.project.timeline || editor.project.root?.timeline;
+      state.scopeInfo = { type: 'main', target: editor.project, frameCount: estimateFrameCount(tl) };
+    }
+    state.frameCount = Math.max(1, state.scopeInfo.frameCount);
+    state.currentFrame = Math.min(state.currentFrame, state.frameCount);
+    renderFrameList(); refreshLabels();
+  }
+
+  function getStageCanvas() {
+    try {
+      let best = null, bestArea = 0;
+      for (const c of window.parent?.document?.querySelectorAll('canvas') || []) {
+        const r = c.getBoundingClientRect();
+        if (r.width * r.height > bestArea && r.width > 200) { best = c; bestArea = r.width * r.height; }
+      }
+      return best;
+    } catch (_) { return null; }
+  }
+
+  function viewportToStage(vr) {
+    const editor = getEditor(), stageEl = getStageCanvas();
+    if (!editor || !stageEl) throw new Error('Stage not found');
+    const sb = stageEl.getBoundingClientRect();
+    const sw = editor.project.width || 1920, sh = editor.project.height || 1080;
+    const l = Math.max(sb.left, Math.min(sb.right, vr.left)), t = Math.max(sb.top, Math.min(sb.bottom, vr.top));
+    const r = Math.max(sb.left, Math.min(sb.right, vr.right)), b = Math.max(sb.top, Math.min(sb.bottom, vr.bottom));
+    const rx = (l - sb.left) / sb.width, ry = (t - sb.top) / sb.height;
+    const rw = (r - l) / sb.width, rh = (b - t) / sb.height;
+    return { x: rx * sw, y: ry * sh, w: rw * sw, h: rh * sh, cx: (rx + rw / 2) * sw, cy: (ry + rh / 2) * sh };
+  }
+
+  // ==================== OVERLAY ====================
+
+  function destroySelectionOverlay() { state.selectionOverlay?.remove(); state.selectionOverlay = null; }
+  function destroyRigOverlay() { state.rigOverlay?.remove(); state.rigOverlay = null; state.rigCanvas = null; state.rigCtx = null; }
+  function cleanupOnClose() { destroySelectionOverlay(); destroyRigOverlay(); }
+  function clearArea() { destroySelectionOverlay(); destroyRigOverlay(); state.areaViewport = null; state.areaStage = null; state.fittedImageRect = null; refreshLabels(); setStatus('Area cleared'); }
+
+  function startAreaSelection() {
+    clearArea();
+    const pdoc = window.parent?.document;
+    if (!pdoc) return setStatus('No parent document');
+    const overlay = pdoc.createElement('div');
+    state.selectionOverlay = overlay;
+    overlay.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:2147483647;cursor:crosshair;background:rgba(0,0,0,0.1);user-select:none;';
+    const box = pdoc.createElement('div');
+    box.style.cssText = 'position:fixed;border:2px dashed #7cf;background:rgba(124,199,255,0.15);pointer-events:none;';
+    overlay.appendChild(box);
+    let sx = 0, sy = 0, drag = false;
+    const cleanup = () => { overlay.remove(); if (state.selectionOverlay === overlay) state.selectionOverlay = null; };
+    overlay.onmousedown = e => { drag = true; sx = e.clientX; sy = e.clientY; };
+    overlay.onmousemove = e => { if (!drag) return; const x = Math.min(sx, e.clientX), y = Math.min(sy, e.clientY); box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.width = Math.abs(e.clientX - sx) + 'px'; box.style.height = Math.abs(e.clientY - sy) + 'px'; };
+    overlay.onmouseup = e => {
+      if (!drag) return cleanup();
+      drag = false;
+      const x = Math.min(sx, e.clientX), y = Math.min(sy, e.clientY);
+      const w = Math.max(8, Math.abs(e.clientX - sx)), h = Math.max(8, Math.abs(e.clientY - sy));
+      cleanup();
+      state.areaViewport = { x, y, w, h };
+      state.areaStage = viewportToStage({ left: x, top: y, right: x + w, bottom: y + h });
+      createRigOverlay(); renderBoneList(); renderFrameList(); refreshLabels(); initUndoStack();
+      setStatus(state.image ? 'Area set' : 'Area set, load PNG');
+    };
+    overlay.oncontextmenu = e => { e.preventDefault(); cleanup(); };
+    pdoc.body.appendChild(overlay);
+  }
+
+  function fitImageRect(aw, ah, iw, ih, mode) {
+    if (mode === 'stretch') return { x: 0, y: 0, w: aw, h: ah };
+    const s = mode === 'fill' ? Math.max(aw / iw, ah / ih) : Math.min(aw / iw, ah / ih);
+    return { x: (aw - iw * s) / 2, y: (ah - ih * s) / 2, w: iw * s, h: ih * s };
+  }
+
+  function ensureMesh() {
+    if (!state.areaViewport) return;
+    const s = getSettings();
+    let rect = { x: 0, y: 0, w: state.areaViewport.w, h: state.areaViewport.h };
+    if (state.image) { rect = fitImageRect(state.areaViewport.w, state.areaViewport.h, state.image.width, state.image.height, s.fitMode); state.fittedImageRect = rect; }
+    const pts = [];
+    for (let y = 0; y <= s.meshY; y++) for (let x = 0; x <= s.meshX; x++) pts.push({ x: rect.x + x / s.meshX * rect.w, y: rect.y + y / s.meshY * rect.h });
+    state.mesh = { cols: s.meshX, rows: s.meshY, points: pts, rect };
+  }
+
+  function createRigOverlay() {
+    destroyRigOverlay();
+    if (!state.areaViewport) return;
+    const pdoc = window.parent?.document;
+    if (!pdoc) return;
+    const wrap = pdoc.createElement('div');
+    wrap.style.cssText = `position:fixed;pointer-events:none;z-index:2147483646;left:${state.areaViewport.x}px;top:${state.areaViewport.y}px;width:${state.areaViewport.w}px;height:${state.areaViewport.h}px;`;
+    const canvas = pdoc.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;cursor:crosshair;';
+    wrap.appendChild(canvas);
+    pdoc.body.appendChild(wrap);
+    state.rigOverlay = wrap; state.rigCanvas = canvas; state.rigCtx = canvas.getContext('2d', { alpha: true });
+    const dpr = window.parent?.devicePixelRatio || 1;
+    canvas.width = state.areaViewport.w * dpr; canvas.height = state.areaViewport.h * dpr;
+    state.rigCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bindRigCanvas(canvas);
+    ensureMesh();
+    renderRigOverlay();
+  }
+
+  function overlayPoint(e) { const r = state.rigCanvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+  // ==================== BONES ====================
+
+  function ensureBoneEnvelopeDefaults() {
+    for (const b of state.bones) {
+      const r = Math.max(10, b.radius || 30);
+      if (!Number.isFinite(b.radiusRoot)) b.radiusRoot = r;
+      if (!Number.isFinite(b.radiusTip)) b.radiusTip = r;
+      if (!Number.isFinite(b.radius)) b.radius = r;
+    }
+  }
+
+  function getLocalPose(frame, idx, useKeys) {
+    const b = state.bones[idx]; if (!b) return null;
+    const k = useKeys ? (state.keys[String(frame)]?.[idx] || {}) : {};
+    return { x: k.x ?? b.x, y: k.y ?? b.y, angle: k.angle ?? b.angle, length: k.length ?? b.length, radius: k.radius ?? b.radius, radiusRoot: k.radiusRoot ?? b.radiusRoot ?? b.radius, radiusTip: k.radiusTip ?? b.radiusTip ?? b.radius };
+  }
+
+  function getWorldPose(frame, idx, useKeys) {
+    const bone = state.bones[idx], local = getLocalPose(frame, idx, useKeys);
+    if (!bone || !local) return null;
+    if (bone.parentIndex == null || bone.parentIndex < 0) return { ...local };
+    const pBase = state.bones[bone.parentIndex], pPose = getWorldPose(frame, bone.parentIndex, useKeys);
+    if (!pBase || !pPose) return { ...local };
+    const pTip = getBoneTip(pPose), da = pPose.angle - pBase.angle;
+    const c = Math.cos(da), s = Math.sin(da), dx = local.x - bone.x, dy = local.y - bone.y;
+    return { x: pTip.x + dx * c - dy * s, y: pTip.y + dx * s + dy * c, angle: local.angle + da, length: local.length, radius: local.radius, radiusRoot: local.radiusRoot, radiusTip: local.radiusTip };
+  }
+
+  function getPreviewPose(frame, idx) { return getWorldPose(frame, idx, state.toolMode === 'deform'); }
+  function getPoseForMode(frame, idx) { return state.toolMode === 'deform' ? getLocalPose(frame, idx, true) : getLocalPose(frame, idx, false); }
+
+  function getEnvHandles(pose) {
+    const nx = Math.cos(pose.angle + Math.PI / 2), ny = Math.sin(pose.angle + Math.PI / 2), tip = getBoneTip(pose);
+    return { root: { x: pose.x + nx * (pose.radiusRoot ?? pose.radius), y: pose.y + ny * (pose.radiusRoot ?? pose.radius) }, tip: { x: tip.x + nx * (pose.radiusTip ?? pose.radius), y: tip.y + ny * (pose.radiusTip ?? pose.radius) } };
+  }
+
+  function setKeyPose(idx, pose) {
+    ensureKeyframe(state.currentFrame)[idx] = { x: pose.x, y: pose.y, angle: pose.angle, length: pose.length, radius: pose.radius, radiusRoot: pose.radiusRoot, radiusTip: pose.radiusTip };
+    renderFrameList();
+  }
+
+  function findBoneHit(pt) {
+    for (let i = state.bones.length - 1; i >= 0; i--) {
+      const pose = getPreviewPose(state.currentFrame, i); if (!pose) continue;
+      const tip = getBoneTip(pose), env = getEnvHandles(pose), hasP = state.bones[i].parentIndex >= 0;
+      if (!hasP && dist(pt, env.root) <= 10) return { index: i, end: 'envelopeRoot' };
+      if (dist(pt, env.tip) <= 10) return { index: i, end: 'envelopeTip' };
+      if (!hasP && dist(pt, { x: pose.x, y: pose.y }) <= 10) return { index: i, end: 'root' };
+      if (dist(pt, tip) <= 10) return { index: i, end: 'tip' };
+    }
+    return null;
+  }
+
+  function findVertex(pt, maxD = 15) {
+    if (!state.mesh?.points) return -1;
+    let best = -1, bd = maxD;
+    for (let i = 0; i < state.mesh.points.length; i++) { const d = dist(pt, state.mesh.points[i]); if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+
+  // ==================== AUTO WEIGHTS ====================
+
+  function computeAutoWeights() {
+    if (!state.mesh?.points || !state.bones.length) return;
+    const s = getSettings();
+    state.vertexWeights = {};
+    for (let vi = 0; vi < state.mesh.points.length; vi++) {
+      const p = state.mesh.points[vi], w = {};
+      let total = 0;
+      for (let bi = 0; bi < state.bones.length; bi++) {
+        const pose = getPreviewPose(state.currentFrame, bi); if (!pose) continue;
+        const tip = getBoneTip(pose), vx = tip.x - pose.x, vy = tip.y - pose.y;
+        const len2 = Math.max(0.0001, vx * vx + vy * vy);
+        let t = Math.max(0, Math.min(1, ((p.x - pose.x) * vx + (p.y - pose.y) * vy) / len2));
+        const closest = { x: pose.x + vx * t, y: pose.y + vy * t };
+        const d = dist(p, closest), radius = (pose.radiusRoot ?? pose.radius) * (1 - t) + (pose.radiusTip ?? pose.radius) * t;
+        if (d <= radius) { const wt = Math.pow(1 - d / radius, s.falloff); w[bi] = wt; total += wt; }
+      }
+      if (total > 0) { for (const bi in w) w[bi] /= total; state.vertexWeights[vi] = w; }
+    }
+  }
+
+  function paintVertex(vi, bi, weight) {
+    if (vi < 0 || bi < 0) return;
+    if (!state.vertexWeights[vi]) state.vertexWeights[vi] = {};
+    if (weight <= 0) { delete state.vertexWeights[vi][bi]; if (!Object.keys(state.vertexWeights[vi]).length) delete state.vertexWeights[vi]; }
+    else { state.vertexWeights[vi][bi] = weight; let t = 0; for (const b in state.vertexWeights[vi]) t += state.vertexWeights[vi][b]; if (t > 0) for (const b in state.vertexWeights[vi]) state.vertexWeights[vi][b] /= t; }
+  }
+
+  // ==================== CANVAS EVENTS ====================
+
+  function bindRigCanvas(canvas) {
+    canvas.onpointerdown = function (e) {
+      e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+      ensureBoneEnvelopeDefaults();
+      const pt = overlayPoint(e), hit = findBoneHit(pt);
+
+      if (state.mode === 'vertexPaint' && state.toolMode === 'rig') {
+        const vi = findVertex(pt, 20);
+        if (vi >= 0 && state.selectedBoneIndex >= 0) {
+          pushUndo('Paint');
+          const cur = state.vertexWeights[vi]?.[state.selectedBoneIndex] || 0;
+          paintVertex(vi, state.selectedBoneIndex, cur > 0.5 ? 0 : 1);
+          renderRigOverlay();
+        }
+        return;
+      }
+
+      if (state.mode === 'add' && state.toolMode === 'rig') {
+        pushUndo('Add Bone');
+        const s = getSettings();
+        let sx = pt.x, sy = pt.y, parent = -1;
+        if (hit?.end === 'tip') { const pp = getPreviewPose(state.currentFrame, hit.index), tip = getBoneTip(pp); parent = hit.index; sx = tip.x; sy = tip.y; }
+        else if (hit?.end === 'root') { const pp = getPreviewPose(state.currentFrame, hit.index); sx = pp.x; sy = pp.y; }
+        const initR = Math.round(s.radius / 2);
+        state.bones.push({ x: sx, y: sy, angle: 0, length: 5, radius: initR, radiusRoot: initR, radiusTip: initR, parentIndex: parent, name: 'Bone ' + (state.bones.length + 1) });
+        state.pendingNewBoneIndex = state.bones.length - 1;
+        state.selectedBoneIndex = state.pendingNewBoneIndex;
+        state.dragBoneIndex = state.pendingNewBoneIndex;
+        state.dragBoneEnd = 'tip';
+        renderBoneList(); renderRigOverlay(); refreshLabels();
+        setStatus(parent >= 0 ? 'Child of ' + state.bones[parent].name : 'Drag to set bone');
+        return;
+      }
+
+      if (!hit) return;
+      state.selectedBoneIndex = hit.index;
+      state.dragBoneIndex = hit.index;
+      state.dragBoneEnd = hit.end;
+      if (hit.end === 'envelopeRoot' || hit.end === 'envelopeTip' || state.mode === 'envelope') {
+        const cur = getPoseForMode(state.currentFrame, hit.index);
+        el.influenceRadius.value = Math.round(hit.end === 'envelopeTip' ? cur.radiusTip ?? cur.radius : cur.radiusRoot ?? cur.radius);
+        refreshLabels();
+      }
+      if (state.mode === 'key' && state.toolMode === 'deform') { pushUndo('Key'); setKeyPose(hit.index, getPoseForMode(state.currentFrame, hit.index)); renderRigOverlay(); setStatus('Keyed frame ' + state.currentFrame); }
+      renderBoneList(); refreshLabels();
+    };
+
+    canvas.onpointermove = function (e) {
+      const pt = overlayPoint(e);
+      state.hoverPoint = pt;
+      state.hoverBoneIndex = findBoneHit(pt)?.index ?? -1;
+      if (state.dragBoneIndex < 0) { renderRigOverlay(); return; }
+      ensureBoneEnvelopeDefaults();
+      const base = state.bones[state.dragBoneIndex]; if (!base) return;
+      const newBone = state.pendingNewBoneIndex === state.dragBoneIndex;
+      let pose = getPoseForMode(state.currentFrame, state.dragBoneIndex); if (!pose) return;
+
+      if (state.dragBoneEnd === 'envelopeRoot' || state.dragBoneEnd === 'envelopeTip' || state.mode === 'envelope') {
+        const wp = getPreviewPose(state.currentFrame, state.dragBoneIndex);
+        if (state.dragBoneEnd === 'envelopeTip') { pose.radiusTip = Math.max(10, dist(pt, getBoneTip(wp))); el.influenceRadius.value = Math.round(pose.radiusTip); }
+        else { pose.radiusRoot = Math.max(10, dist(pt, { x: wp.x, y: wp.y })); el.influenceRadius.value = Math.round(pose.radiusRoot); }
+        pose.radius = Math.max(pose.radiusRoot, pose.radiusTip);
+        if (state.toolMode === 'deform' && state.mode !== 'add') setKeyPose(state.dragBoneIndex, pose);
+        else state.bones[state.dragBoneIndex] = { ...base, ...pose };
+        computeAutoWeights();
+        renderBoneList(); refreshLabels(); renderRigOverlay();
+        return;
+      }
+
+      if (state.mode === 'move' || state.mode === 'add' || newBone || state.mode === 'test') {
+        if (state.dragBoneEnd === 'root' && !newBone && base.parentIndex < 0) { pose.x = pt.x; pose.y = pt.y; }
+        else {
+          const wp = getPreviewPose(state.currentFrame, state.dragBoneIndex) || pose;
+          const dx = pt.x - wp.x, dy = pt.y - wp.y;
+          pose.angle = Math.atan2(dy, dx);
+          pose.length = Math.max(5, Math.sqrt(dx * dx + dy * dy));
+        }
+        if (state.toolMode === 'deform' && !newBone && state.mode !== 'add') setKeyPose(state.dragBoneIndex, pose);
+        else state.bones[state.dragBoneIndex] = { ...base, ...pose };
+        renderBoneList(); renderRigOverlay();
+      }
+    };
+
+    canvas.onpointerup = function () {
+      if (state.pendingNewBoneIndex >= 0) { computeAutoWeights(); pushUndo('Bone Created'); }
+      state.dragBoneIndex = -1; state.dragBoneEnd = 'tip'; state.pendingNewBoneIndex = -1;
+    };
+    canvas.onpointercancel = canvas.onpointerup;
+    canvas.onpointerleave = () => { state.hoverPoint = null; state.hoverBoneIndex = -1; renderRigOverlay(); };
+  }
+
+  // ==================== DEFORM ====================
+
+  function getDeformedGrid(frame) {
+    if (!state.mesh) return null;
+    ensureBoneEnvelopeDefaults();
+    const s = getSettings(), pts = state.mesh.points.map(p => ({ x: p.x, y: p.y }));
+    if (!state.bones.length) return pts;
+    const hasW = Object.keys(state.vertexWeights).length > 0;
+    for (let i = 0; i < pts.length; i++) {
+      let sx = 0, sy = 0, sw = 0;
+      const p = state.mesh.points[i];
+      for (let b = 0; b < state.bones.length; b++) {
+        const base = getWorldPose(frame, b, false), pose = state.toolMode === 'deform' ? getPreviewPose(frame, b) : getWorldPose(frame, b, false);
+        if (!base || !pose) continue;
+        let w = 0;
+        if (hasW && state.vertexWeights[i]?.[b] !== undefined) w = state.vertexWeights[i][b];
+        else if (!hasW) {
+          const bTip = getBoneTip(base), vx = bTip.x - base.x, vy = bTip.y - base.y;
+          const len2 = Math.max(0.0001, vx * vx + vy * vy);
+          let t = Math.max(0, Math.min(1, ((p.x - base.x) * vx + (p.y - base.y) * vy) / len2));
+          const cl = { x: base.x + vx * t, y: base.y + vy * t }, d = dist(p, cl);
+          const r = (base.radiusRoot ?? base.radius) * (1 - t) + (base.radiusTip ?? base.radius) * t;
+          if (d <= r) w = Math.pow(1 - d / r, s.falloff);
+        }
+        if (w > 0) {
+          const bTip = getBoneTip(base), pTip = getBoneTip(pose);
+          const vx = bTip.x - base.x, vy = bTip.y - base.y, len2 = Math.max(0.0001, vx * vx + vy * vy);
+          let t = Math.max(0, Math.min(1, ((p.x - base.x) * vx + (p.y - base.y) * vy) / len2));
+          sx += ((pose.x - base.x) * (1 - t) + (pTip.x - bTip.x) * t) * w;
+          sy += ((pose.y - base.y) * (1 - t) + (pTip.y - bTip.y) * t) * w;
+          sw += w;
+        }
+      }
+      if (sw > 0) { pts[i].x += sx / sw; pts[i].y += sy / sw; }
+    }
+    return pts;
+  }
+
+  function drawTri(ctx, img, sx0, sy0, sx1, sy1, sx2, sy2, p0, p1, p2) {
+    ctx.save(); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.closePath(); ctx.clip();
+    const dn = sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1);
+    if (Math.abs(dn) < 0.00001) { ctx.restore(); return; }
+    ctx.transform((p0.x * (sy1 - sy2) + p1.x * (sy2 - sy0) + p2.x * (sy0 - sy1)) / dn, (p0.y * (sy1 - sy2) + p1.y * (sy2 - sy0) + p2.y * (sy0 - sy1)) / dn, (p0.x * (sx2 - sx1) + p1.x * (sx0 - sx2) + p2.x * (sx1 - sx0)) / dn, (p0.y * (sx2 - sx1) + p1.y * (sx0 - sx2) + p2.y * (sx1 - sx0)) / dn, (p0.x * (sx1 * sy2 - sx2 * sy1) + p1.x * (sx2 * sy0 - sx0 * sy2) + p2.x * (sx0 * sy1 - sx1 * sy0)) / dn, (p0.y * (sx1 * sy2 - sx2 * sy1) + p1.y * (sx2 * sy0 - sx0 * sy2) + p2.y * (sx0 * sy1 - sx1 * sy0)) / dn);
+    ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+
+  function drawWarped(ctx, frame) {
+    if (!state.image || !state.mesh || !state.fittedImageRect) return;
+    const { cols, rows } = state.mesh, def = getDeformedGrid(frame); if (!def) return;
+    const cw = state.image.width / cols, ch = state.image.height / rows;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const i0 = y * (cols + 1) + x, i1 = i0 + 1, i2 = i0 + cols + 1, i3 = i2 + 1;
+      const sx = x * cw, sy = y * ch;
+      drawTri(ctx, state.image, sx, sy, sx + cw, sy, sx, sy + ch, def[i0], def[i1], def[i2]);
+      drawTri(ctx, state.image, sx + cw, sy, sx + cw, sy + ch, sx, sy + ch, def[i1], def[i3], def[i2]);
+    }
+  }
+
+  // ==================== RENDER ====================
+
+  function getVertexColor(vi) {
+    const w = state.vertexWeights[vi]; if (!w) return null;
+    let mb = -1, mw = 0; for (const b in w) if (w[b] > mw) { mw = w[b]; mb = +b; }
+    return mb >= 0 ? getBoneColor(mb) : null;
+  }
+
+  function renderRigOverlay() {
+    if (!state.rigCtx || !state.areaViewport) return;
+    const ctx = state.rigCtx, { w, h } = state.areaViewport;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(20,40,80,0.03)'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(124,199,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, w - 2, h - 2);
+    
+    if (state.image) {
+      state.fittedImageRect = fitImageRect(w, h, state.image.width, state.image.height, getSettings().fitMode);
+      if (!state.mesh || Math.abs(state.mesh.rect.w - state.fittedImageRect.w) > 0.01) ensureMesh();
+      drawWarped(ctx, state.currentFrame);
+    }
+    
+    if (state.mode === 'vertexPaint' && state.mesh?.points) {
+      for (let i = 0; i < state.mesh.points.length; i++) {
+        const p = state.mesh.points[i], col = getVertexColor(i);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = col || 'rgba(128,128,128,0.3)'; ctx.fill();
+        ctx.strokeStyle = col ? '#fff' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+      }
+    }
+    
+    for (let i = 0; i < state.bones.length; i++) {
+      const pose = getPreviewPose(state.currentFrame, i); if (!pose) continue;
+      const tip = getBoneTip(pose), env = getEnvHandles(pose), hasP = state.bones[i].parentIndex >= 0;
+      const sel = i === state.selectedBoneIndex, hov = i === state.hoverBoneIndex, col = getBoneColor(i);
+      
+      if (hasP) { const pp = getPreviewPose(state.currentFrame, state.bones[i].parentIndex); if (pp) { ctx.beginPath(); ctx.moveTo(getBoneTip(pp).x, getBoneTip(pp).y); ctx.lineTo(pose.x, pose.y); ctx.strokeStyle = 'rgba(168,85,247,0.6)'; ctx.lineWidth = 2; ctx.stroke(); } }
+      
+      if (sel || hov || state.mode === 'envelope') {
+        const rr = pose.radiusRoot ?? pose.radius, rt = pose.radiusTip ?? pose.radius;
+        const g1 = ctx.createRadialGradient(pose.x, pose.y, 0, pose.x, pose.y, rr); g1.addColorStop(0, col + '30'); g1.addColorStop(1, col + '00');
+        ctx.beginPath(); ctx.arc(pose.x, pose.y, rr, 0, Math.PI * 2); ctx.fillStyle = g1; ctx.fill();
+        const g2 = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, rt); g2.addColorStop(0, col + '30'); g2.addColorStop(1, col + '00');
+        ctx.beginPath(); ctx.arc(tip.x, tip.y, rt, 0, Math.PI * 2); ctx.fillStyle = g2; ctx.fill();
+      }
+      
+      ctx.beginPath(); ctx.arc(pose.x, pose.y, pose.radiusRoot ?? pose.radius, 0, Math.PI * 2); ctx.strokeStyle = sel ? col + 'AA' : 'rgba(52,211,153,0.12)'; ctx.lineWidth = sel ? 1.5 : 1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(tip.x, tip.y, pose.radiusTip ?? pose.radius, 0, Math.PI * 2); ctx.strokeStyle = sel ? col + 'AA' : 'rgba(52,211,153,0.12)'; ctx.lineWidth = sel ? 1.5 : 1; ctx.stroke();
+      
+      ctx.beginPath(); ctx.moveTo(pose.x, pose.y); ctx.lineTo(tip.x, tip.y); ctx.strokeStyle = sel ? '#fff' : col; ctx.lineWidth = sel ? 4 : hov ? 3 : 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pose.x, pose.y); ctx.lineTo(tip.x, tip.y); ctx.strokeStyle = col; ctx.lineWidth = sel ? 2 : 1.5; ctx.stroke();
+      
+      if (!hasP) { ctx.beginPath(); ctx.arc(pose.x, pose.y, sel ? 6 : 4, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(tip.x, tip.y, sel ? 5 : 3, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      
+      if (!hasP) { ctx.beginPath(); ctx.moveTo(pose.x, pose.y); ctx.lineTo(env.root.x, env.root.y); ctx.strokeStyle = col + '55'; ctx.lineWidth = 1; ctx.stroke(); ctx.beginPath(); ctx.arc(env.root.x, env.root.y, 3, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(env.tip.x, env.tip.y); ctx.strokeStyle = col + '55'; ctx.lineWidth = 1; ctx.stroke(); ctx.beginPath(); ctx.arc(env.tip.x, env.tip.y, 3, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      
+      ctx.font = 'bold 10px system-ui'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+      ctx.strokeText(i + 1, tip.x + 6, tip.y - 6); ctx.fillText(i + 1, tip.x + 6, tip.y - 6);
+    }
+    
+    if (state.mode === 'add' && state.hoverPoint && state.dragBoneIndex < 0) {
+      const hit = findBoneHit(state.hoverPoint), s = getSettings();
+      let px = state.hoverPoint.x, py = state.hoverPoint.y, willP = false;
+      if (hit?.end === 'tip') { const pp = getPreviewPose(state.currentFrame, hit.index), t = getBoneTip(pp); px = t.x; py = t.y; willP = true; }
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fillStyle = willP ? 'rgba(168,85,247,0.5)' : 'rgba(96,165,250,0.5)'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, s.radius / 2, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(52,211,153,0.25)'; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  function renderFrameList() {
+    el.frameList.innerHTML = '';
+    for (let i = 1; i <= state.frameCount; i++) {
+      const kc = Object.keys(state.keys[String(i)] || {}).length;
+      const item = document.createElement('div');
+      item.className = 'item' + (i === state.currentFrame ? ' active' : '');
+      item.innerHTML = `<b>F${i}</b> <span class="small">${kc}k</span>`;
+      item.onclick = () => { state.currentFrame = i; refreshLabels(); renderFrameList(); renderRigOverlay(); };
+      el.frameList.appendChild(item);
+    }
+  }
+
+  function renderBoneList() {
+    el.boneList.innerHTML = '';
+    for (let i = 0; i < state.bones.length; i++) {
+      const b = state.bones[i], item = document.createElement('div');
+      item.className = 'item' + (state.selectedBoneIndex === i ? ' active' : '');
+      const pn = b.parentIndex >= 0 ? state.bones[b.parentIndex]?.name : '—';
+      item.innerHTML = `<span class="color-swatch" style="background:${getBoneColor(i)}"></span><b>${b.name}</b> <span class="small mono">L${b.length.toFixed(0)} R${(b.radius || 30).toFixed(0)}</span> <span class="small">→${pn}</span>`;
+      item.onclick = () => { state.selectedBoneIndex = i; el.influenceRadius.value = Math.round(b.radius || 30); refreshLabels(); renderBoneList(); renderRigOverlay(); };
+      el.boneList.appendChild(item);
+    }
+  }
+
+  // ==================== FILE I/O ====================
+
+  function readPng(file) {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => { const img = new Image(); img.onload = () => { state.image = img; state.imageName = file.name; if (state.areaViewport) createRigOverlay(); else { ensureMesh(); renderRigOverlay(); } renderBoneList(); renderFrameList(); refreshLabels(); setStatus('PNG: ' + file.name); }; img.src = r.result; };
+    r.readAsDataURL(file);
+  }
+
+  function serializeRig() {
+    return { version: 25, areaViewport: state.areaViewport, areaStage: state.areaStage, imageName: state.imageName, fitMode: el.fitMode.value, meshX: +el.meshX.value, meshY: +el.meshY.value, influenceRadius: +el.influenceRadius.value, envelopeFalloff: +el.envelopeFalloff.value, boneLength: +el.boneLength.value, scopeSelect: el.scopeSelect.value, frameCount: state.frameCount, bones: state.bones, keys: state.keys, vertexWeights: state.vertexWeights };
+  }
+
+  function saveRig() {
+    const blob = new Blob([JSON.stringify(serializeRig(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.imageName?.replace(/\.png$/i, '') || 'rig') + '_rig.json'; a.click();
+  }
+
+  function loadRig(file) {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => { try {
+      const d = JSON.parse(r.result);
+      state.areaViewport = d.areaViewport; state.areaStage = d.areaStage;
+      el.fitMode.value = d.fitMode || 'contain'; el.meshX.value = d.meshX || 10; el.meshY.value = d.meshY || 10;
+      el.influenceRadius.value = d.influenceRadius || 60; el.envelopeFalloff.value = d.envelopeFalloff || 2; el.boneLength.value = d.boneLength || 80;
+      el.scopeSelect.value = d.scopeSelect || 'main'; state.frameCount = Math.max(1, d.frameCount || 1);
+      state.bones = d.bones || []; state.keys = d.keys || {}; state.vertexWeights = d.vertexWeights || {}; state.currentFrame = 1;
+      ensureBoneEnvelopeDefaults(); if (state.areaViewport) createRigOverlay();
+      renderFrameList(); renderBoneList(); renderRigOverlay(); refreshLabels(); initUndoStack();
+      setStatus('Rig loaded');
+    } catch (e) { setStatus('Load error: ' + e.message); } };
+    r.readAsText(file);
+  }
+
+  // ==================== COMMIT ====================
+
+  async function commitToTimeline() {
+    if (!state.areaStage || !state.image) return setStatus('Need area + PNG');
+    const editor = getEditor(); if (!editor?.project) return setStatus('Editor not found');
+    const project = editor.project;
+    const tl = state.scopeInfo.type === 'clip' ? state.scopeInfo.target?.timeline : (project.activeTimeline || project.timeline || project.root?.timeline);
+    if (!tl) return setStatus('Timeline not found');
+    setStatus('Stamping...');
+    const keyedFrames = Object.keys(state.keys).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    const frames = keyedFrames.length ? keyedFrames : [state.currentFrame];
+    try {
+      for (const fn of frames) {
+        const c = document.createElement('canvas'); c.width = state.areaViewport.w; c.height = state.areaViewport.h;
+        const ctx = c.getContext('2d');
+        if (state.image) { state.fittedImageRect = fitImageRect(state.areaViewport.w, state.areaViewport.h, state.image.width, state.image.height, getSettings().fitMode); drawWarped(ctx, fn); }
+        const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+        const file = new File([blob], getSettings().namePrefix + '_' + fn + '.png', { type: 'image/png' });
+        const beforeIDs = new Set((project.assetLibrary || project.assets || []).map(a => a?.uuid || a?._uuid).filter(Boolean));
+        const orig = { toast: editor.toast, updateToast: editor.updateToast }; editor.toast = () => {}; editor.updateToast = () => {};
+        try { if (editor.createAssets) await editor.createAssets([file], []); else if (project.createAssets) await project.createAssets([file], []); } finally { Object.assign(editor, orig); }
+        let asset = null; const start = Date.now();
+        while (!asset && Date.now() - start < 15000) { await new Promise(r => setTimeout(r, 100)); for (const a of (project.assetLibrary || project.assets || [])) { const id = a?.uuid || a?._uuid; if (id && !beforeIDs.has(id)) { asset = a; break; } } }
+        if (!asset) throw new Error('Asset import timeout');
+        const uuid = asset.uuid || asset._uuid;
+        let cached = null; const start2 = Date.now();
+        while (!cached && Date.now() - start2 < 15000) { await new Promise(r => setTimeout(r, 80)); for (const a of (project.assetLibrary || [])) { if ((a?.uuid === uuid || a?._uuid === uuid) && a._object) { cached = a._object; break; } } }
+        if (!cached) throw new Error('Cache timeout');
+        try { editor.canvas?.setPlayheadPosition?.(fn); editor.timeline?.setPlayheadPosition?.(fn); if (project.activeTimeline) project.activeTimeline.playheadPosition = fn; } catch (_) {}
+        let placed = null;
+        for (let i = 0; i < 40 && !placed; i++) {
+          try { const fn2 = project.createImagePathFromAsset?.bind(project) || editor.createImagePathFromAsset?.bind(editor); if (fn2) placed = await new Promise((res, rej) => { fn2(uuid, state.areaStage.cx, state.areaStage.cy, p => p ? res(p) : rej()); setTimeout(() => rej(), 800); }); } catch (_) {}
+          if (!placed) await new Promise(r => setTimeout(r, 150));
+        }
+        if (!placed) throw new Error('Placement failed');
+        if (typeof placed.x === 'number') { placed.x = state.areaStage.cx; placed.y = state.areaStage.cy; }
+      }
+      project.markAsModified?.(); editor.projectDidChange?.(); editor.syncInterfaces?.(); editor.canvas?.render?.();
+      setStatus('Stamped ' + frames.length + ' frame(s)');
+    } catch (e) { setStatus('Error: ' + e.message); }
+    refreshLabels(); renderRigOverlay();
+  }
+
+  // ==================== BIND ====================
+
+  function bind() {
+    el.btnSetArea.onclick = startAreaSelection;
+    el.btnClearArea.onclick = clearArea;
+    el.btnCommit.onclick = commitToTimeline;
+    el.btnRefreshFrames.onclick = readFramesFromScope;
+    el.pngInput.onchange = () => readPng(el.pngInput.files?.[0]);
+    el.btnSaveRig.onclick = saveRig;
+    el.rigInput.onchange = () => loadRig(el.rigInput.files?.[0]);
+    el.btnUndo.onclick = undo;
+    el.btnRedo.onclick = redo;
+    
+    [el.fitMode, el.meshX, el.meshY, el.envelopeFalloff, el.boneLength].forEach(n => { n.oninput = n.onchange = () => { ensureMesh(); refreshLabels(); renderRigOverlay(); }; });
+    el.influenceRadius.oninput = el.influenceRadius.onchange = () => {
+      if (state.selectedBoneIndex >= 0) { const b = state.bones[state.selectedBoneIndex], r = Math.max(10, +el.influenceRadius.value || 60); b.radiusRoot = b.radiusTip = b.radius = r; computeAutoWeights(); renderBoneList(); renderRigOverlay(); }
+      refreshLabels();
+    };
+    el.frameSlider.oninput = () => { state.currentFrame = Math.max(1, +el.frameSlider.value || 1); refreshLabels(); renderFrameList(); renderRigOverlay(); };
+    
+    el.toolModeRig.onclick = () => setToolMode('rig');
+    el.toolModeDeform.onclick = () => setToolMode('deform');
+    el.modeAddBone.onclick = () => setMode('add');
+    el.modeMoveBone.onclick = () => setMode('move');
+    el.modeEnvelope.onclick = () => setMode('envelope');
+    el.modeVertexPaint.onclick = () => setMode('vertexPaint');
+    el.modeTestDeform.onclick = () => setMode('test');
+    el.modeKey.onclick = () => setMode('key');
+    
+    document.addEventListener('keydown', e => { if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); } else if (e.key === 'y') { e.preventDefault(); redo(); } } });
+    window.addEventListener('beforeunload', cleanupOnClose);
+  }
+
+  function init() {
+    bind(); readFramesFromScope(); ensureBoneEnvelopeDefaults();
+    renderFrameList(); renderBoneList(); refreshLabels(); initUndoStack();
+    setStatus('Drag from tips to auto-parent. Weights auto-update.');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
