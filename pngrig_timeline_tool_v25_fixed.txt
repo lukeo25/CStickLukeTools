@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PNG Rig Timeline Tool v25</title>
+<title>PNG Rig Timeline Tool v26</title>
 <style>
   :root { color-scheme: dark; }
   html, body { margin:0; padding:0; height:100%; background:#111318; color:#eef2f7; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow-y:auto; }
@@ -46,6 +46,15 @@
   .ctrl input[type="range"] { width:100%; height:4px; margin:0; }
   .ctrl select { width:100%; padding:3px 5px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; }
   .ctrl input[type="text"] { width:100%; padding:3px 5px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; }
+  .ctrl input[type="number"] { width:100%; padding:3px 5px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; -moz-appearance:textfield; }
+  .ctrl input[type="number"]::-webkit-inner-spin-button, .ctrl input[type="number"]::-webkit-outer-spin-button { opacity:1; }
+
+  /* Transform toolbar */
+  .transform-bar { padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(0,0,0,0.15); font-size:11px; flex-shrink:0; }
+  .transform-bar .transform-label { font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; margin-right:2px; }
+  .transform-bar .transform-group { display:flex; gap:4px; align-items:center; }
+  .transform-bar input[type="number"] { width:52px; padding:3px 4px; font-size:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#eef2f7; -moz-appearance:textfield; }
+  .transform-bar input[type="number"]::-webkit-inner-spin-button, .transform-bar input[type="number"]::-webkit-outer-spin-button { opacity:1; }
   
   /* Status bar */
   .statusbar { padding:6px 12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center; font-size:10px; flex-shrink:0; }
@@ -74,7 +83,7 @@
   <!-- Top bar -->
   <div class="top">
     <div class="row">
-      <span class="title">PNG Rig v25</span>
+      <span class="title">PNG Rig v26</span>
       <span class="summary" id="summaryText"></span>
     </div>
     <div class="row">
@@ -83,6 +92,7 @@
       <span id="undoInfo" class="undo-info"></span>
       <button id="btnSetArea" class="btn">Set Area</button>
       <button id="btnClearArea" class="btn">Clear</button>
+      <button id="btnResetTransform" class="btn" title="Reset area transforms">Reset</button>
       <button id="btnCommit" class="btn primary">Stamp</button>
     </div>
   </div>
@@ -96,6 +106,32 @@
     <input id="rigInput" type="file" accept=".json"/>
   </div>
   
+  <!-- Area Transform toolbar -->
+  <div class="transform-bar" id="transformBar" style="display:none;">
+    <div class="transform-group">
+      <span class="transform-label">Translate</span>
+      <label style="font-size:10px;color:rgba(255,255,255,0.5)">X</label>
+      <input id="translateX" type="number" value="0" step="1" title="Translate X"/>
+      <label style="font-size:10px;color:rgba(255,255,255,0.5)">Y</label>
+      <input id="translateY" type="number" value="0" step="1" title="Translate Y"/>
+    </div>
+    <div class="transform-group">
+      <span class="transform-label">Rotate</span>
+      <input id="rotateAngle" type="number" value="0" step="1" min="-360" max="360" title="Rotate degrees"/>
+      <label style="font-size:10px;color:rgba(255,255,255,0.5)">°</label>
+    </div>
+    <div class="transform-group">
+      <span class="transform-label">Scale Area</span>
+      <input id="scaleAreaX" type="number" value="100" step="1" min="10" max="500" title="Scale area width %"/>
+      <label style="font-size:10px;color:rgba(255,255,255,0.5)">%</label>
+    </div>
+    <div class="transform-group">
+      <span class="transform-label">Scale Size</span>
+      <input id="scaleSizeVal" type="number" value="100" step="1" min="10" max="500" title="Scale content size %"/>
+      <label style="font-size:10px;color:rgba(255,255,255,0.5)">%</label>
+    </div>
+  </div>
+
   <!-- Mode toolbar -->
   <div class="mode-bar">
     <div class="mode-group">
@@ -142,12 +178,16 @@
           <select id="fitMode"><option value="contain">Contain</option><option value="fill">Fill</option><option value="stretch">Stretch</option></select>
         </div>
         <div class="ctrl">
+          <div class="ctrl-row"><span class="ctrl-label">Mesh Type</span><span class="ctrl-value" id="meshTypeVal">Quad</span></div>
+          <select id="meshType"><option value="quad">Quad</option><option value="triangle">Triangle</option><option value="diamond">Diamond</option></select>
+        </div>
+        <div class="ctrl">
           <div class="ctrl-row"><span class="ctrl-label">Mesh X</span><span class="ctrl-value" id="meshXVal">10</span></div>
-          <input id="meshX" type="range" min="4" max="24" value="10"/>
+          <input id="meshX" type="range" min="2" max="40" value="10"/>
         </div>
         <div class="ctrl">
           <div class="ctrl-row"><span class="ctrl-label">Mesh Y</span><span class="ctrl-value" id="meshYVal">10</span></div>
-          <input id="meshY" type="range" min="4" max="24" value="10"/>
+          <input id="meshY" type="range" min="2" max="40" value="10"/>
         </div>
       </div>
       
@@ -198,17 +238,22 @@
   const $ = id => document.getElementById(id);
   const el = {
     btnSetArea: $('btnSetArea'), btnClearArea: $('btnClearArea'), btnCommit: $('btnCommit'), btnRefreshFrames: $('btnRefreshFrames'),
+    btnResetTransform: $('btnResetTransform'),
     pngInput: $('pngInput'), btnSaveRig: $('btnSaveRig'), rigInput: $('rigInput'), scopeSelect: $('scopeSelect'),
-    fitMode: $('fitMode'), meshX: $('meshX'), meshY: $('meshY'), influenceRadius: $('influenceRadius'), envelopeFalloff: $('envelopeFalloff'),
+    fitMode: $('fitMode'), meshType: $('meshType'), meshX: $('meshX'), meshY: $('meshY'), influenceRadius: $('influenceRadius'), envelopeFalloff: $('envelopeFalloff'),
     frameSlider: $('frameSlider'), boneLength: $('boneLength'), namePrefix: $('namePrefix'), summaryText: $('summaryText'), 
     frameList: $('frameList'), boneList: $('boneList'), status: $('status'), debug: $('debugLog'), 
-    fitVal: $('fitVal'), meshXVal: $('meshXVal'), meshYVal: $('meshYVal'), radiusVal: $('radiusVal'), falloffVal: $('falloffVal'), 
+    fitVal: $('fitVal'), meshTypeVal: $('meshTypeVal'), meshXVal: $('meshXVal'), meshYVal: $('meshYVal'), radiusVal: $('radiusVal'), falloffVal: $('falloffVal'), 
     frameVal: $('frameVal'), boneLenVal: $('boneLenVal'),
     toolModeRig: $('toolModeRig'), toolModeDeform: $('toolModeDeform'), 
     modeAddBone: $('modeAddBone'), modeMoveBone: $('modeMoveBone'), 
     modeEnvelope: $('modeEnvelope'), modeVertexPaint: $('modeVertexPaint'), 
     modeTestDeform: $('modeTestDeform'), modeKey: $('modeKey'),
-    btnUndo: $('btnUndo'), btnRedo: $('btnRedo'), undoInfo: $('undoInfo')
+    btnUndo: $('btnUndo'), btnRedo: $('btnRedo'), undoInfo: $('undoInfo'),
+    transformBar: $('transformBar'),
+    translateX: $('translateX'), translateY: $('translateY'),
+    rotateAngle: $('rotateAngle'),
+    scaleAreaX: $('scaleAreaX'), scaleSizeVal: $('scaleSizeVal')
   };
 
   const BONE_COLORS = [
@@ -218,8 +263,9 @@
 
   const state = {
     toolMode: 'rig', mode: 'move', 
-    areaViewport: null, areaStage: null, 
+    areaViewport: null, areaStage: null, areaOriginal: null,
     selectionOverlay: null, rigOverlay: null, rigCanvas: null, rigCtx: null,
+    transform: { tx: 0, ty: 0, rotate: 0, scaleArea: 100, scaleSize: 100 },
     image: null, imageName: '', fittedImageRect: null, mesh: null, 
     bones: [], keys: {}, frameCount: 1, currentFrame: 1,
     dragBoneIndex: -1, dragBoneEnd: 'tip', pendingNewBoneIndex: -1, selectedBoneIndex: -1, 
@@ -300,6 +346,7 @@
   function getSettings() {
     return {
       fitMode: el.fitMode.value || 'contain',
+      meshType: el.meshType.value || 'quad',
       meshX: Math.max(2, num(el.meshX.value, 10)),
       meshY: Math.max(2, num(el.meshY.value, 10)),
       radius: Math.max(10, num(el.influenceRadius.value, 60)),
@@ -312,6 +359,7 @@
   function refreshLabels() {
     const s = getSettings();
     el.fitVal.textContent = el.fitMode.options[el.fitMode.selectedIndex].text;
+    el.meshTypeVal.textContent = el.meshType.options[el.meshType.selectedIndex].text;
     el.meshXVal.textContent = s.meshX;
     el.meshYVal.textContent = s.meshY;
     el.radiusVal.textContent = s.radius;
@@ -418,12 +466,63 @@
     return { x: rx * sw, y: ry * sh, w: rw * sw, h: rh * sh, cx: (rx + rw / 2) * sw, cy: (ry + rh / 2) * sh };
   }
 
+  // ==================== AREA TRANSFORMS ====================
+
+  function applyAreaTransform() {
+    if (!state.areaOriginal) return;
+    const t = state.transform;
+    const orig = state.areaOriginal;
+    const sA = Math.max(10, t.scaleArea) / 100;
+    const newW = orig.w * sA, newH = orig.h * sA;
+    const cx = orig.x + orig.w / 2, cy = orig.y + orig.h / 2;
+    state.areaViewport = {
+      x: cx - newW / 2 + t.tx,
+      y: cy - newH / 2 + t.ty,
+      w: newW, h: newH
+    };
+    // Recalculate stage coords
+    const vr = state.areaViewport;
+    try {
+      state.areaStage = viewportToStage({ left: vr.x, top: vr.y, right: vr.x + vr.w, bottom: vr.y + vr.h });
+    } catch (_) {}
+    createRigOverlay();
+    refreshLabels();
+  }
+
+  function resetTransform() {
+    state.transform = { tx: 0, ty: 0, rotate: 0, scaleArea: 100, scaleSize: 100 };
+    el.translateX.value = 0; el.translateY.value = 0; el.rotateAngle.value = 0; el.scaleAreaX.value = 100; el.scaleSizeVal.value = 100;
+    if (state.areaOriginal) {
+      state.areaViewport = { ...state.areaOriginal };
+      try { state.areaStage = viewportToStage({ left: state.areaOriginal.x, top: state.areaOriginal.y, right: state.areaOriginal.x + state.areaOriginal.w, bottom: state.areaOriginal.y + state.areaOriginal.h }); } catch (_) {}
+      createRigOverlay();
+    }
+    refreshLabels();
+    setStatus('Transforms reset');
+  }
+
+  function onTransformInput() {
+    state.transform.tx = num(el.translateX.value, 0);
+    state.transform.ty = num(el.translateY.value, 0);
+    state.transform.rotate = num(el.rotateAngle.value, 0);
+    state.transform.scaleArea = num(el.scaleAreaX.value, 100);
+    state.transform.scaleSize = num(el.scaleSizeVal.value, 100);
+    applyAreaTransform();
+  }
+
   // ==================== OVERLAY ====================
 
   function destroySelectionOverlay() { state.selectionOverlay?.remove(); state.selectionOverlay = null; }
   function destroyRigOverlay() { state.rigOverlay?.remove(); state.rigOverlay = null; state.rigCanvas = null; state.rigCtx = null; }
   function cleanupOnClose() { destroySelectionOverlay(); destroyRigOverlay(); }
-  function clearArea() { destroySelectionOverlay(); destroyRigOverlay(); state.areaViewport = null; state.areaStage = null; state.fittedImageRect = null; refreshLabels(); setStatus('Area cleared'); }
+  function clearArea() {
+    destroySelectionOverlay(); destroyRigOverlay();
+    state.areaViewport = null; state.areaStage = null; state.areaOriginal = null; state.fittedImageRect = null;
+    state.transform = { tx: 0, ty: 0, rotate: 0, scaleArea: 100, scaleSize: 100 };
+    el.translateX.value = 0; el.translateY.value = 0; el.rotateAngle.value = 0; el.scaleAreaX.value = 100; el.scaleSizeVal.value = 100;
+    el.transformBar.style.display = 'none';
+    refreshLabels(); setStatus('Area cleared');
+  }
 
   function startAreaSelection() {
     clearArea();
@@ -446,7 +545,11 @@
       const w = Math.max(8, Math.abs(e.clientX - sx)), h = Math.max(8, Math.abs(e.clientY - sy));
       cleanup();
       state.areaViewport = { x, y, w, h };
+      state.areaOriginal = { x, y, w, h };
       state.areaStage = viewportToStage({ left: x, top: y, right: x + w, bottom: y + h });
+      state.transform = { tx: 0, ty: 0, rotate: 0, scaleArea: 100, scaleSize: 100 };
+      el.translateX.value = 0; el.translateY.value = 0; el.rotateAngle.value = 0; el.scaleAreaX.value = 100; el.scaleSizeVal.value = 100;
+      el.transformBar.style.display = 'flex';
       createRigOverlay(); renderBoneList(); renderFrameList(); refreshLabels(); initUndoStack();
       setStatus(state.image ? 'Area set' : 'Area set, load PNG');
     };
@@ -466,8 +569,34 @@
     let rect = { x: 0, y: 0, w: state.areaViewport.w, h: state.areaViewport.h };
     if (state.image) { rect = fitImageRect(state.areaViewport.w, state.areaViewport.h, state.image.width, state.image.height, s.fitMode); state.fittedImageRect = rect; }
     const pts = [];
-    for (let y = 0; y <= s.meshY; y++) for (let x = 0; x <= s.meshX; x++) pts.push({ x: rect.x + x / s.meshX * rect.w, y: rect.y + y / s.meshY * rect.h });
-    state.mesh = { cols: s.meshX, rows: s.meshY, points: pts, rect };
+    if (s.meshType === 'triangle') {
+      // Triangle mesh: offset every other row by half a cell width
+      for (let y = 0; y <= s.meshY; y++) {
+        const isOdd = y % 2 === 1;
+        for (let x = 0; x <= s.meshX; x++) {
+          const ox = isOdd ? 0.5 / s.meshX * rect.w : 0;
+          const px = Math.min(rect.x + rect.w, Math.max(rect.x, rect.x + x / s.meshX * rect.w + ox));
+          pts.push({ x: px, y: rect.y + y / s.meshY * rect.h });
+        }
+      }
+    } else if (s.meshType === 'diamond') {
+      // Diamond mesh: offset every other row, double the vertical resolution
+      const dRows = s.meshY * 2;
+      for (let y = 0; y <= dRows; y++) {
+        const isOdd = y % 2 === 1;
+        for (let x = 0; x <= s.meshX; x++) {
+          const ox = isOdd ? 0.5 / s.meshX * rect.w : 0;
+          const px = Math.min(rect.x + rect.w, Math.max(rect.x, rect.x + x / s.meshX * rect.w + ox));
+          pts.push({ x: px, y: rect.y + y / dRows * rect.h });
+        }
+      }
+      state.mesh = { cols: s.meshX, rows: dRows, points: pts, rect, meshType: s.meshType };
+      return;
+    } else {
+      // Quad mesh (default)
+      for (let y = 0; y <= s.meshY; y++) for (let x = 0; x <= s.meshX; x++) pts.push({ x: rect.x + x / s.meshX * rect.w, y: rect.y + y / s.meshY * rect.h });
+    }
+    state.mesh = { cols: s.meshX, rows: s.meshY, points: pts, rect, meshType: s.meshType };
   }
 
   function createRigOverlay() {
@@ -720,15 +849,36 @@
     ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
+  function applyScaleSizeToPoint(p, rect, scaleSize) {
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    const s = scaleSize / 100;
+    return { x: cx + (p.x - cx) * s, y: cy + (p.y - cy) * s };
+  }
+
+  function applyRotateToPoint(p, rect, angleDeg) {
+    if (!angleDeg) return p;
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    const rad = angleDeg * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const dx = p.x - cx, dy = p.y - cy;
+    return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+  }
+
   function drawWarped(ctx, frame) {
     if (!state.image || !state.mesh || !state.fittedImageRect) return;
     const { cols, rows } = state.mesh, def = getDeformedGrid(frame); if (!def) return;
     const cw = state.image.width / cols, ch = state.image.height / rows;
+    const rect = state.fittedImageRect;
+    const scaleSize = state.transform.scaleSize || 100;
+    const rotateDeg = state.transform.rotate || 0;
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
       const i0 = y * (cols + 1) + x, i1 = i0 + 1, i2 = i0 + cols + 1, i3 = i2 + 1;
       const sx = x * cw, sy = y * ch;
-      drawTri(ctx, state.image, sx, sy, sx + cw, sy, sx, sy + ch, def[i0], def[i1], def[i2]);
-      drawTri(ctx, state.image, sx + cw, sy, sx + cw, sy + ch, sx, sy + ch, def[i1], def[i3], def[i2]);
+      let p0 = def[i0], p1 = def[i1], p2 = def[i2], p3 = def[i3];
+      if (scaleSize !== 100) { p0 = applyScaleSizeToPoint(p0, rect, scaleSize); p1 = applyScaleSizeToPoint(p1, rect, scaleSize); p2 = applyScaleSizeToPoint(p2, rect, scaleSize); p3 = applyScaleSizeToPoint(p3, rect, scaleSize); }
+      if (rotateDeg !== 0) { p0 = applyRotateToPoint(p0, rect, rotateDeg); p1 = applyRotateToPoint(p1, rect, rotateDeg); p2 = applyRotateToPoint(p2, rect, rotateDeg); p3 = applyRotateToPoint(p3, rect, rotateDeg); }
+      drawTri(ctx, state.image, sx, sy, sx + cw, sy, sx, sy + ch, p0, p1, p2);
+      drawTri(ctx, state.image, sx + cw, sy, sx + cw, sy + ch, sx, sy + ch, p1, p3, p2);
     }
   }
 
@@ -836,7 +986,7 @@
   }
 
   function serializeRig() {
-    return { version: 25, areaViewport: state.areaViewport, areaStage: state.areaStage, imageName: state.imageName, fitMode: el.fitMode.value, meshX: +el.meshX.value, meshY: +el.meshY.value, influenceRadius: +el.influenceRadius.value, envelopeFalloff: +el.envelopeFalloff.value, boneLength: +el.boneLength.value, scopeSelect: el.scopeSelect.value, frameCount: state.frameCount, bones: state.bones, keys: state.keys, vertexWeights: state.vertexWeights };
+    return { version: 26, areaViewport: state.areaViewport, areaOriginal: state.areaOriginal, areaStage: state.areaStage, imageName: state.imageName, fitMode: el.fitMode.value, meshType: el.meshType.value, meshX: +el.meshX.value, meshY: +el.meshY.value, influenceRadius: +el.influenceRadius.value, envelopeFalloff: +el.envelopeFalloff.value, boneLength: +el.boneLength.value, scopeSelect: el.scopeSelect.value, frameCount: state.frameCount, transform: state.transform, bones: state.bones, keys: state.keys, vertexWeights: state.vertexWeights };
   }
 
   function saveRig() {
@@ -849,10 +999,14 @@
     const r = new FileReader();
     r.onload = () => { try {
       const d = JSON.parse(r.result);
-      state.areaViewport = d.areaViewport; state.areaStage = d.areaStage;
-      el.fitMode.value = d.fitMode || 'contain'; el.meshX.value = d.meshX || 10; el.meshY.value = d.meshY || 10;
+      state.areaViewport = d.areaViewport; state.areaStage = d.areaStage; state.areaOriginal = d.areaOriginal || d.areaViewport;
+      el.fitMode.value = d.fitMode || 'contain'; el.meshType.value = d.meshType || 'quad'; el.meshX.value = d.meshX || 10; el.meshY.value = d.meshY || 10;
       el.influenceRadius.value = d.influenceRadius || 60; el.envelopeFalloff.value = d.envelopeFalloff || 2; el.boneLength.value = d.boneLength || 80;
       el.scopeSelect.value = d.scopeSelect || 'main'; state.frameCount = Math.max(1, d.frameCount || 1);
+      state.transform = d.transform || { tx: 0, ty: 0, rotate: 0, scaleArea: 100, scaleSize: 100 };
+      el.translateX.value = state.transform.tx || 0; el.translateY.value = state.transform.ty || 0;
+      el.rotateAngle.value = state.transform.rotate || 0; el.scaleAreaX.value = state.transform.scaleArea || 100; el.scaleSizeVal.value = state.transform.scaleSize || 100;
+      if (state.areaViewport) el.transformBar.style.display = 'flex';
       state.bones = d.bones || []; state.keys = d.keys || {}; state.vertexWeights = d.vertexWeights || {}; state.currentFrame = 1;
       ensureBoneEnvelopeDefaults(); if (state.areaViewport) createRigOverlay();
       renderFrameList(); renderBoneList(); renderRigOverlay(); refreshLabels(); initUndoStack();
@@ -917,7 +1071,9 @@
     el.btnUndo.onclick = undo;
     el.btnRedo.onclick = redo;
     
-    [el.fitMode, el.meshX, el.meshY, el.envelopeFalloff, el.boneLength].forEach(n => { n.oninput = n.onchange = () => { ensureMesh(); refreshLabels(); renderRigOverlay(); }; });
+    el.btnResetTransform.onclick = resetTransform;
+    [el.translateX, el.translateY, el.rotateAngle, el.scaleAreaX, el.scaleSizeVal].forEach(n => { n.oninput = n.onchange = onTransformInput; });
+    [el.fitMode, el.meshType, el.meshX, el.meshY, el.envelopeFalloff, el.boneLength].forEach(n => { n.oninput = n.onchange = () => { ensureMesh(); refreshLabels(); renderRigOverlay(); }; });
     el.influenceRadius.oninput = el.influenceRadius.onchange = () => {
       if (state.selectedBoneIndex >= 0) { const b = state.bones[state.selectedBoneIndex], r = Math.max(10, +el.influenceRadius.value || 60); b.radiusRoot = b.radiusTip = b.radius = r; computeAutoWeights(); renderBoneList(); renderRigOverlay(); }
       refreshLabels();
