@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wick/Candlestick Autosave Recovery Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --accent-primary: #00ffc8;
+            --accent-secondary: #ff6b35;
+            --accent-warning: #ffd93d;
+            --text-primary: #ffffff;
+            --text-secondary: #8a8a9a;
+            --text-muted: #5a5a6a;
+            --border-color: #2a2a3a;
+            --success: #00ff88;
+            --error: #ff4757;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 200, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 200, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header { text-align: center; margin-bottom: 50px; }
+
+        .logo { display: inline-flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+
+        .logo-icon {
+            width: 60px; height: 60px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 0 30px rgba(0, 255, 200, 0.3);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 200, 0.3); }
+            50% { box-shadow: 0 0 50px rgba(0, 255, 200, 0.5); }
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .info-box {
+            background: rgba(0, 255, 200, 0.05);
+            border: 1px solid rgba(0, 255, 200, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-box h4 {
+            color: var(--accent-primary);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .info-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--accent-secondary);
+        }
+
+        .warning-box {
+            background: rgba(255, 217, 61, 0.1);
+            border: 1px solid rgba(255, 217, 61, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .warning-box h4 {
+            color: var(--accent-warning);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .repair-options {
+            background: rgba(255, 107, 53, 0.05);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .repair-options h4 {
+            color: var(--accent-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .repair-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .repair-option input[type="checkbox"] {
+            accent-color: var(--accent-secondary);
+            width: 18px; height: 18px;
+        }
+
+        .status-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .status-row:last-child { border-bottom: none; }
+
+        .status-label { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .status-value {
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.success { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .status-dot.warning { background: var(--accent-warning); box-shadow: 0 0 10px var(--accent-warning); }
+        .status-dot.error { background: var(--error); box-shadow: 0 0 10px var(--error); }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #00c8ff);
+            color: var(--bg-dark);
+            box-shadow: 0 4px 20px rgba(0, 255, 200, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(0, 255, 200, 0.5);
+        }
+
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-primary);
+        }
+
+        .databases-section { margin-bottom: 30px; }
+
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .database-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .database-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .database-item:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .database-item.has-wick {
+            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .database-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .database-name {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .database-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .database-badge {
+            background: var(--success);
+            color: var(--bg-dark);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .projects-section { margin-top: 40px; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .project-count {
+            background: var(--accent-primary);
+            color: var(--bg-dark);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .projects-list { display: flex; flex-direction: column; gap: 15px; }
+
+        .project-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .project-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-primary);
+            transform: translateX(5px);
+        }
+
+        .project-card:hover::before { opacity: 1; }
+
+        .project-card.corrupted { border-color: var(--accent-warning); }
+        .project-card.corrupted::before {
+            background: linear-gradient(180deg, var(--accent-warning), var(--error));
+            opacity: 1;
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .project-info h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .project-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+
+        .meta-item {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-item span { color: var(--text-muted); }
+
+        .corruption-warning {
+            background: rgba(255, 217, 61, 0.1);
+            border: 1px solid rgba(255, 217, 61, 0.3);
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: var(--accent-warning);
+        }
+
+        .corruption-warning strong { display: block; margin-bottom: 5px; }
+
+        .corruption-details {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 8px;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-download {
+            background: transparent;
+            border: 2px solid var(--accent-primary);
+            color: var(--accent-primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-download:hover {
+            background: var(--accent-primary);
+            color: var(--bg-dark);
+        }
+
+        .btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-download.downloading { pointer-events: none; }
+
+        .btn-json {
+            background: transparent;
+            border: 2px solid var(--text-muted);
+            color: var(--text-secondary);
+        }
+
+        .btn-json:hover {
+            background: var(--text-muted);
+            color: var(--bg-dark);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--bg-card);
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+        }
+
+        .empty-icon { font-size: 4rem; margin-bottom: 20px; opacity: 0.5; }
+
+        .empty-state h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            max-width: 400px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .log-panel {
+            margin-top: 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .log-header {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .log-content {
+            padding: 15px 20px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            line-height: 1.8;
+        }
+
+        .log-entry { color: var(--text-muted); }
+        .log-entry.success { color: var(--success); }
+        .log-entry.error { color: var(--error); }
+        .log-entry.info { color: var(--accent-primary); }
+        .log-entry.warning { color: var(--accent-warning); }
+
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        footer a { color: var(--accent-primary); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .modal-close:hover { color: var(--text-primary); }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-body pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 600px) {
+            .project-header { flex-direction: column; }
+            .project-actions { justify-content: flex-start; }
+            .actions { flex-direction: column; }
+            .btn { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🔧</div>
+            </div>
+            <h1>Wick/Candlestick Recovery</h1>
+            <p class="subtitle">Universal autosave recovery for Wick Editor and Candlestick</p>
+        </header>
+
+        <div class="warning-box">
+            <h4>⚠️ Important: Run this on the correct site!</h4>
+            <p>
+                IndexedDB is <strong>domain-specific</strong>. This tool must be run from the same domain as your editor:<br><br>
+                • <strong>Wick Editor:</strong> Open this file, then go to <code>wickeditor.com</code> and paste the scan code in console<br>
+                • <strong>Candlestick:</strong> Open this file, then go to <code>candlestick.gg</code> and paste the scan code in console<br><br>
+                Or use the <strong>Bookmarklet</strong> below directly on the editor site!
+            </p>
+        </div>
+
+        <div class="info-box">
+            <h4>📋 Option 1: Use Console Script (Recommended)</h4>
+            <p>
+                1. Go to <strong>wickeditor.com</strong> or <strong>candlestick.gg</strong> in your browser<br>
+                2. Open Developer Tools (F12 or Ctrl+Shift+I)<br>
+                3. Go to the <strong>Console</strong> tab<br>
+                4. Paste and run this code:
+            </p>
+            <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-top: 15px; overflow-x: auto; font-size: 0.75rem; color: var(--accent-primary);" id="console-script">// Wick/Candlestick Autosave Recovery Script
+(async function() {
+    console.log('🔍 Scanning for autosaves...');
+    
+    // Try to access Wick's autosave system directly
+    if (typeof Wick !== 'undefined' && Wick.AutoSave) {
+        console.log('✅ Found Wick.AutoSave API');
+        
+        Wick.AutoSave.getAutosavesList(function(list) {
+            console.log('📁 Found ' + list.length + ' autosave(s):');
+            console.table(list);
+            
+            if (list.length > 0) {
+                console.log('\\n📥 To download an autosave, run:');
+                console.log('downloadAutosave("' + list[0].uuid + '")');
+            }
+        });
+        
+        // Add download helper function
+        window.downloadAutosave = function(uuid) {
+            Wick.AutoSave.readAutosaveData(uuid, function(data) {
+                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'wick-autosave-' + uuid.substring(0,8) + '.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                console.log('✅ Downloaded! Import this JSON file into the recovery tool.');
+            });
+        };
+        
+        window.downloadAllAutosaves = function() {
+            Wick.AutoSave.getAutosavesList(function(list) {
+                list.forEach(function(item, i) {
+                    setTimeout(function() {
+                        downloadAutosave(item.uuid);
+                    }, i * 500);
+                });
+            });
+        };
+        
+        console.log('\\n💡 Helper functions added:');
+        console.log('  downloadAutosave("uuid") - Download single autosave');
+        console.log('  downloadAllAutosaves() - Download all autosaves');
+        
+    } else {
+        console.log('❌ Wick.AutoSave not found. Scanning IndexedDB directly...');
+        
+        // List all databases
+        const databases = await indexedDB.databases();
+        console.log('📦 Found ' + databases.length + ' database(s):');
+        console.table(databases);
+    }
+})();</pre>
+            <button class="btn btn-secondary" style="margin-top: 15px;" onclick="copyScript()">📋 Copy Script</button>
+        </div>
+
+        <div class="repair-options">
+            <h4>🔧 Repair Options (for JSON import)</h4>
+            <label class="repair-option">
+                <input type="checkbox" id="opt-remove-missing" checked>
+                Remove references to missing objects
+            </label>
+            <label class="repair-option">
+                <input type="checkbox" id="opt-remove-sounds" checked>
+                Strip corrupted sound assets
+            </label>
+            <label class="repair-option">
+                <input type="checkbox" id="opt-fix-timelines">
+                Reset broken timeline references
+            </label>
+            <label class="repair-option">
+                <input type="checkbox" id="opt-remove-scripts">
+                Remove all scripts (for script-related crashes)
+            </label>
+        </div>
+
+        <div class="status-panel">
+            <div class="status-row">
+                <span class="status-label">Mode</span>
+                <span class="status-value" id="mode-status">JSON Import Mode</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Projects Loaded</span>
+                <span class="status-value" id="autosave-count">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Issues Detected</span>
+                <span class="status-value" id="corrupted-count">0</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <label class="btn btn-primary" style="cursor: pointer;">
+                <span>📂</span> Import JSON Files
+                <input type="file" id="file-input" accept=".json" multiple style="display: none;">
+            </label>
+            <button class="btn btn-secondary" id="export-all-btn" onclick="exportAllProjects()" disabled>
+                <span>📦</span> Export All as .wick
+            </button>
+        </div>
+
+        <div class="projects-section">
+            <div class="section-header">
+                <h2 class="section-title">Loaded Projects</h2>
+                <span class="project-count" id="project-count-badge">0</span>
+            </div>
+            <div class="projects-list" id="projects-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📂</div>
+                    <h3>No projects loaded</h3>
+                    <p>Use the console script on the Wick/Candlestick site to export your autosaves as JSON, then import them here.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <div class="log-header">
+                <span class="log-title">Activity Log</span>
+            </div>
+            <div class="log-content" id="log-content">
+                <div class="log-entry">Ready. Use the console script to export autosaves from Wick/Candlestick.</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>This tool runs entirely in your browser. No data is sent anywhere.<br>
+            Works with <a href="https://wickeditor.com" target="_blank">Wick Editor</a> and <a href="https://www.candlestick.gg" target="_blank">Candlestick</a>.</p>
+        </footer>
+    </div>
+
+    <!-- JSON View Modal -->
+    <div class="modal-overlay" id="json-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Raw Project Data</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre id="json-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let loadedProjects = [];
+
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('log-content');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function copyScript() {
+            const script = document.getElementById('console-script').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                log('Console script copied to clipboard!', 'success');
+                alert('Script copied! Paste it in the browser console on wickeditor.com or candlestick.gg');
+            });
+        }
+
+        // Analyze project for corruption issues
+        function analyzeProject(autosaveData) {
+            const issues = [];
+            const objectsData = autosaveData.objectsData || [];
+            const projectData = autosaveData.projectData || {};
+
+            const availableUuids = new Set();
+            objectsData.forEach(obj => {
+                if (obj.uuid) availableUuids.add(obj.uuid);
+            });
+            if (projectData.uuid) availableUuids.add(projectData.uuid);
+
+            const missingRefs = [];
+            
+            function checkChildren(obj, path) {
+                if (!obj) return;
+                
+                if (Array.isArray(obj.children)) {
+                    obj.children.forEach(childUuid => {
+                        if (typeof childUuid === 'string' && !availableUuids.has(childUuid)) {
+                            missingRefs.push({ uuid: childUuid, path: path + '.children' });
+                        }
+                    });
+                }
+
+                ['activeTimeline', 'activeLayer', 'activeFrame', 'focus'].forEach(prop => {
+                    if (obj[prop] && typeof obj[prop] === 'string' && !availableUuids.has(obj[prop])) {
+                        missingRefs.push({ uuid: obj[prop], path: path + '.' + prop });
+                    }
+                });
+            }
+
+            checkChildren(projectData, 'projectData');
+            objectsData.forEach((obj, idx) => {
+                checkChildren(obj, `objectsData[${idx}]`);
+            });
+
+            if (missingRefs.length > 0) {
+                issues.push({
+                    type: 'missing_references',
+                    message: `${missingRefs.length} missing object reference(s)`,
+                    details: missingRefs
+                });
+            }
+
+            const soundAssets = objectsData.filter(obj => obj.classname === 'SoundAsset');
+            if (soundAssets.length > 0) {
+                issues.push({
+                    type: 'sound_assets',
+                    message: `${soundAssets.length} sound asset(s) (may cause loading issues)`,
+                    details: soundAssets.map(s => s.uuid)
+                });
+            }
+
+            if (!projectData.focus) {
+                issues.push({
+                    type: 'missing_focus',
+                    message: 'Project has no focus object set',
+                    details: []
+                });
+            }
+
+            return issues;
+        }
+
+        // Repair project data
+        function repairProject(autosaveData, options) {
+            const repaired = JSON.parse(JSON.stringify(autosaveData));
+            let repairs = [];
+
+            const objectsData = repaired.objectsData || [];
+            const projectData = repaired.projectData || {};
+
+            const availableUuids = new Set();
+            objectsData.forEach(obj => {
+                if (obj.uuid) availableUuids.add(obj.uuid);
+            });
+            if (projectData.uuid) availableUuids.add(projectData.uuid);
+
+            if (options.removeMissing) {
+                function cleanReferences(obj) {
+                    if (!obj) return;
+
+                    if (Array.isArray(obj.children)) {
+                        const before = obj.children.length;
+                        obj.children = obj.children.filter(uuid => availableUuids.has(uuid));
+                        if (obj.children.length < before) {
+                            repairs.push(`Removed ${before - obj.children.length} missing children references`);
+                        }
+                    }
+
+                    ['activeTimeline', 'activeLayer', 'activeFrame', 'focus'].forEach(prop => {
+                        if (obj[prop] && typeof obj[prop] === 'string' && !availableUuids.has(obj[prop])) {
+                            delete obj[prop];
+                            repairs.push(`Removed invalid ${prop} reference`);
+                        }
+                    });
+                }
+
+                cleanReferences(projectData);
+                objectsData.forEach(cleanReferences);
+            }
+
+            if (options.removeSounds) {
+                const soundUuids = new Set();
+                for (let i = objectsData.length - 1; i >= 0; i--) {
+                    if (objectsData[i].classname === 'SoundAsset') {
+                        soundUuids.add(objectsData[i].uuid);
+                        objectsData.splice(i, 1);
+                    }
+                }
+
+                if (soundUuids.size > 0) {
+                    repairs.push(`Removed ${soundUuids.size} sound asset(s)`);
+
+                    function removeSoundRefs(obj) {
+                        if (Array.isArray(obj.children)) {
+                            obj.children = obj.children.filter(uuid => !soundUuids.has(uuid));
+                        }
+                    }
+
+                    if (projectData.children) removeSoundRefs(projectData);
+                    objectsData.forEach(removeSoundRefs);
+                }
+            }
+
+            if (options.fixTimelines) {
+                objectsData.forEach(obj => {
+                    if (obj.classname === 'Project' || obj.classname === 'Clip') {
+                        if (Array.isArray(obj.children)) {
+                            const timeline = objectsData.find(o => 
+                                o.classname === 'Timeline' && obj.children.includes(o.uuid)
+                            );
+                            if (timeline) {
+                                obj.focus = timeline.uuid;
+                                repairs.push(`Set focus to timeline ${timeline.uuid.substring(0, 8)}...`);
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (options.removeScripts) {
+                let scriptsRemoved = 0;
+                objectsData.forEach(obj => {
+                    if (obj.script && obj.script.length > 0) {
+                        obj.script = '';
+                        scriptsRemoved++;
+                    }
+                });
+                if (scriptsRemoved > 0) {
+                    repairs.push(`Cleared scripts from ${scriptsRemoved} object(s)`);
+                }
+            }
+
+            repaired.objectsData = objectsData;
+            repaired.projectData = projectData;
+
+            return { data: repaired, repairs };
+        }
+
+        // File input handler
+        document.getElementById('file-input').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            
+            for (const file of files) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    // Check if this is valid Wick autosave data
+                    if (data.projectData || data.objectsData) {
+                        const issues = analyzeProject(data);
+                        
+                        loadedProjects.push({
+                            filename: file.name,
+                            uuid: data.projectData?.uuid || 'unknown',
+                            lastModified: data.lastModified || new Date().toISOString(),
+                            data: data,
+                            issues: issues
+                        });
+                        
+                        log(`Loaded: ${file.name} ${issues.length > 0 ? '(has issues)' : ''}`, issues.length > 0 ? 'warning' : 'success');
+                    } else {
+                        log(`Invalid format: ${file.name}`, 'error');
+                    }
+                } catch (err) {
+                    log(`Failed to parse ${file.name}: ${err.message}`, 'error');
+                }
+            }
+            
+            updateUI();
+            e.target.value = ''; // Reset input
+        });
+
+        function updateUI() {
+            const corruptedCount = loadedProjects.filter(p => p.issues.length > 0).length;
+            
+            document.getElementById('autosave-count').textContent = loadedProjects.length;
+            document.getElementById('corrupted-count').textContent = corruptedCount;
+            document.getElementById('project-count-badge').textContent = loadedProjects.length;
+            document.getElementById('export-all-btn').disabled = loadedProjects.length === 0;
+            
+            renderProjectsList();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function renderProjectsList() {
+            const container = document.getElementById('projects-list');
+            
+            if (loadedProjects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <h3>No projects loaded</h3>
+                        <p>Use the console script on the Wick/Candlestick site to export your autosaves as JSON, then import them here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = loadedProjects.map((project, index) => {
+                const projectName = project.data?.projectData?.name || 'Untitled Project';
+                const date = new Date(project.lastModified);
+                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                const fps = project.data?.projectData?.framerate || '?';
+                const width = project.data?.projectData?.width || '?';
+                const height = project.data?.projectData?.height || '?';
+                const objectCount = project.data?.objectsData?.length || 0;
+                const hasIssues = project.issues && project.issues.length > 0;
+
+                let issuesHtml = '';
+                if (hasIssues) {
+                    const issuesList = project.issues.map(issue => {
+                        let details = '';
+                        if (issue.type === 'missing_references' && issue.details.length > 0) {
+                            details = issue.details.slice(0, 3).map(d => d.uuid.substring(0, 8) + '...').join(', ');
+                            if (issue.details.length > 3) details += ` +${issue.details.length - 3} more`;
+                        }
+                        return `• ${issue.message}${details ? ': ' + details : ''}`;
+                    }).join('<br>');
+
+                    issuesHtml = `
+                        <div class="corruption-warning">
+                            <strong>⚠️ Issues Detected</strong>
+                            <div class="corruption-details">${issuesList}</div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="project-card ${hasIssues ? 'corrupted' : ''}" data-index="${index}">
+                        <div class="project-header">
+                            <div class="project-info">
+                                <h3>${escapeHtml(projectName)}</h3>
+                                <div class="project-meta">
+                                    <div class="meta-item">
+                                        <span>📄</span> ${escapeHtml(project.filename)}
+                                    </div>
+                                    <div class="meta-item">
+                                        <span>📐</span> ${width}×${height}
+                                    </div>
+                                    <div class="meta-item">
+                                        <span>🎬</span> ${fps} FPS
+                                    </div>
+                                    <div class="meta-item">
+                                        <span>📦</span> ${objectCount} objects
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ${issuesHtml}
+                        <div class="project-actions">
+                            <button class="btn-download" onclick="downloadProject(${index})">
+                                ${hasIssues ? '🔧 Download Repaired .wick' : '📥 Download .wick'}
+                            </button>
+                            <button class="btn-download btn-json" onclick="viewJson(${index})">
+                                View JSON
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getRepairOptions() {
+            return {
+                removeMissing: document.getElementById('opt-remove-missing').checked,
+                removeSounds: document.getElementById('opt-remove-sounds').checked,
+                fixTimelines: document.getElementById('opt-fix-timelines').checked,
+                removeScripts: document.getElementById('opt-remove-scripts').checked
+            };
+        }
+
+        async function downloadProject(index) {
+            const project = loadedProjects[index];
+            if (!project) {
+                log('Project not found', 'error');
+                return;
+            }
+
+            const btn = document.querySelector(`.project-card[data-index="${index}"] .btn-download`);
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            const projectName = project.data?.projectData?.name || 'untitled';
+            const safeName = projectName.replace(/[^a-zA-Z0-9-_]/g, '_');
+
+            try {
+                let dataToExport = project.data;
+
+                if (project.issues && project.issues.length > 0) {
+                    log(`Applying repairs to: ${projectName}`, 'info');
+                    const options = getRepairOptions();
+                    const result = repairProject(project.data, options);
+                    dataToExport = result.data;
+                    result.repairs.forEach(r => log(`  ✓ ${r}`, 'success'));
+                }
+
+                log(`Generating .wick file for: ${projectName}`, 'info');
+                const wickFile = await createWickFile(dataToExport);
+                
+                const blob = await wickFile.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${safeName}.wick`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log(`Downloaded: ${safeName}.wick`, 'success');
+
+            } catch (error) {
+                log(`Export failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+
+        async function createWickFile(autosaveData) {
+            const zip = new JSZip();
+
+            const projectData = autosaveData.projectData || {};
+            const objectsData = autosaveData.objectsData || [];
+
+            const wickProject = {
+                ...projectData,
+                objects: {}
+            };
+
+            objectsData.forEach(obj => {
+                if (obj.uuid) {
+                    wickProject.objects[obj.uuid] = obj;
+                }
+            });
+
+            zip.file('project.json', JSON.stringify(wickProject, null, 2));
+
+            // Create empty assets folder (assets are stored separately in browser cache)
+            zip.folder('assets');
+
+            return zip;
+        }
+
+        async function exportAllProjects() {
+            if (loadedProjects.length === 0) {
+                log('No projects to export', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('export-all-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Exporting...';
+
+            log(`Exporting all ${loadedProjects.length} projects...`, 'info');
+
+            const allProjectsZip = new JSZip();
+            const options = getRepairOptions();
+
+            for (let i = 0; i < loadedProjects.length; i++) {
+                const project = loadedProjects[i];
+                const projectName = project.data?.projectData?.name || `project_${i + 1}`;
+                const safeName = projectName.replace(/[^a-zA-Z0-9-_]/g, '_');
+
+                try {
+                    let dataToExport = project.data;
+                    if (project.issues && project.issues.length > 0) {
+                        const result = repairProject(project.data, options);
+                        dataToExport = result.data;
+                    }
+
+                    const wickFile = await createWickFile(dataToExport);
+                    const wickBlob = await wickFile.generateAsync({ type: 'blob' });
+                    allProjectsZip.file(`${safeName}.wick`, wickBlob);
+                    log(`Added: ${safeName}.wick`, 'success');
+                } catch (e) {
+                    log(`Failed: ${safeName}: ${e.message}`, 'error');
+                }
+            }
+
+            try {
+                const blob = await allProjectsZip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `wick_recovery_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log('All projects exported!', 'success');
+            } catch (e) {
+                log(`Export failed: ${e.message}`, 'error');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>📦</span> Export All as .wick';
+        }
+
+        function viewJson(index) {
+            const project = loadedProjects[index];
+            if (!project) return;
+
+            const modal = document.getElementById('json-modal');
+            const content = document.getElementById('json-content');
+            
+            const summary = {
+                projectData: project.data.projectData,
+                objectsCount: project.data.objectsData?.length || 0,
+                issues: project.issues,
+                sampleObjects: (project.data.objectsData || []).slice(0, 5)
+            };
+
+            content.textContent = JSON.stringify(summary, null, 2);
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('json-modal').classList.remove('active');
+        }
+
+        document.getElementById('json-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'json-modal') closeModal();
+        });
+    </script>
+</body>
+</html>
