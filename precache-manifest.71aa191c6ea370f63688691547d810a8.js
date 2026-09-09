@@ -748,7 +748,7 @@ self.__precacheManifest = [
     "url": "./static/media/white-heart.14b06d09.svg"
   },
   {
-    "revision": "3d92f7ac1ad88565536f71aa6614c021",
+    "revision": "4e709b897cbdf73478f3d28b7f184c72",
     "url": "./index.html"
   }
 ];
