@@ -1,4 +1,4 @@
-// LukeTools v2.8.10 + Bridge - by lukeo25
+// LukeTools v2.8.12 + Bridge + DemBonesMrk2 - by lukeo25
 // https://github.com/lukeo25/WickTools
 (function () {
     "use strict";
@@ -23,7 +23,7 @@
     var STORAGE_X = "LukeToolsPanelPosX_271";
     var STORAGE_Y = "LukeToolsPanelPosY_271";
     var STORAGE_PANEL_JSON = "LukeToolsPanelConfigJSON_271"; // FIX: JSON config for icon buttons
-    var DEFAULT_PANEL_JSON_URL = LT_GITHUB_RAW_BASE + "scripts/config.json"; // FIX: default config location in public/scripts // FIX: default resolves to config.json beside this script // FIX: auto load panel config from public scripts
+    var DEFAULT_PANEL_JSON_URL = LT_CONFIG_URL; // FIX: default config location in public/scripts // FIX: default resolves to config.json beside this script // FIX: auto load panel config from public scripts
     var ICON_PANEL_ONLY = true; // FIX: hide legacy picker UI and show JSON icon panel only
 
     var DEFAULT_PANEL_W = 300; // FIX: default panel width
@@ -1011,6 +1011,143 @@ function createClipFromSelection(name) {
         Bridge.closeGameSpritePanel = closeGameSpritePanel; // FIX
 
     Bridge.getProject = getProject;
+/* DemBonesMrk2 host: runs in Wick's window, independently of the tool iframe. */
+function installDemBonesMrk2Host(host, html) {
+  'use strict';
+  if (host.DemBonesMrk2Host) {
+    if (html) host.DemBonesMrk2Host.html = html;
+    return host.DemBonesMrk2Host;
+  }
+  var service = { html: html || '', pending: null, panel: null, opening: false,
+    sourceUrl: 'https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt' };
+  host.DemBonesMrk2Host = service;
+  service.read = function (object) {
+    var scripts = object && object.scripts || [];
+    for (var i = 0; i < scripts.length; i++) {
+      var match = String(scripts[i].src || '').match(/\/\*DBM2_RIG:([A-Za-z0-9+/=]+)\*\//);
+      if (match) {
+        try {
+          var data = JSON.parse(decodeURIComponent(escape(host.atob(match[1]))));
+          if (data && data.format === 'DemBonesMrk2' && data.version === 1 && data.binding && data.state) return data;
+        } catch (e) { host.console.warn('DemBonesMrk2: unreadable rig data', e); }
+      }
+    }
+    return null;
+  };
+  service.findRig = function (object) {
+    for (var depth = 0; object && depth < 20; depth++, object = object.parent) {
+      var data = service.read(object);
+      if (data) return { object: object, data: data };
+    }
+    return null;
+  };
+  service.open = function (rig) {
+    if (service.opening) return Promise.resolve(false);
+    if (service.panel && service.panel.alive && service.panel.alive()) {
+      return Promise.resolve(service.panel.resume(rig || null));
+    }
+    if (!service.html && service.sourceUrl) {
+      service.opening = true;
+      return host.fetch(service.sourceUrl, { cache: 'no-store' }).then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.text();
+      }).then(function (text) {
+        if (!/<html[\s>]/i.test(text) || text.indexOf('installDemBonesMrk2') < 0) throw new Error('The downloaded Mrk2 tool is invalid.');
+        service.html = text; service.opening = false;
+        return service.open(rig);
+      }).catch(function (error) {
+        service.opening = false; host.console.error('DemBonesMrk2 download failed', error); return false;
+      });
+    }
+    var bridge = host.LukeToolsBridge;
+    if (!service.html || !bridge || !bridge.openToolFromUrl) {
+      host.console.warn('DemBonesMrk2: load the companion LukeTools object to reopen this rig.');
+      return Promise.resolve(false);
+    }
+    service.pending = rig || null;
+    service.opening = true;
+    var url = host.URL.createObjectURL(new host.Blob([service.html], { type: 'text/html;charset=utf-8' }));
+    return Promise.resolve(bridge.openToolFromUrl(url, { target: 'panel' })).then(function (result) {
+      host.URL.revokeObjectURL(url);
+      service.opening = false;
+      if (result && result.ok === false) throw new Error(result.error || result.reason || 'Could not open tool');
+      return true;
+    }).catch(function (error) {
+      service.opening = false;
+      host.URL.revokeObjectURL(url);
+      host.console.error('DemBonesMrk2 could not open', error);
+      return false;
+    });
+  };
+  service.hit = function (event) {
+    var bridge = host.LukeToolsBridge;
+    var project = bridge && bridge.getProject && bridge.getProject();
+    if (!project || project.playing || !project.view) return null;
+    var scope = project.view.paper || host.paper;
+    var view = scope && scope.view;
+    var canvas = view && (view.element || view._element);
+    if (!canvas || event.target !== canvas) return null;
+    var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    var size = view.viewSize;
+    var point = view.viewToProject(new scope.Point(
+      (event.clientX - rect.left) * size.width / rect.width,
+      (event.clientY - rect.top) * size.height / rect.height
+    ));
+    var hit = scope.project.hitTest(point, { fill: true, stroke: true, segments: false, tolerance: 5 / (view.zoom || 1),
+      match: function (h) { return !(h.item && h.item.data && h.item.data.wickType === 'gui'); } });
+    if (!hit) return null;
+    var cache = host.Wick && host.Wick.ObjectCache;
+    for (var item = hit.item; item; item = item.parent) {
+      var uuid = item.data && item.data.wickUUID;
+      var object = uuid && cache && cache.getObjectByUUID(uuid);
+      var rig = service.findRig(object);
+      if (rig) return rig;
+    }
+    return null;
+  };
+  service.handle = function (event) {
+    if (event.type === 'mousedown' && event.detail !== 2) return;
+    if (event.button !== 0 || event.altKey) return;
+    var rig;
+    try { rig = service.hit(event); } catch (e) { return; }
+    if (!rig) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    // Intercept the second press before Wick enters the clip. dblclick only consumes the trailing event.
+    if (event.type === 'mousedown' || !service.lastOpen || Date.now() - service.lastOpen > 500) {
+      service.lastOpen = Date.now();
+      service.open(rig);
+    }
+  };
+  host.document.addEventListener('mousedown', service.handle, true);
+  host.document.addEventListener('dblclick', service.handle, true);
+  // The save/export entry point may be reached by a menu, shortcut, or autosave caller.
+  // Flush synchronously before Wick snapshots project content, including hidden animation frames.
+  if (host.Wick && host.Wick.WickFile && !host.Wick.WickFile.toWickFile.__dbm2) {
+    var save = host.Wick.WickFile.toWickFile;
+    var wrappedSave = function (project) {
+      if (service.panel && service.panel.alive && service.panel.alive() && service.panel.project() === project) service.panel.flush(true);
+      return save.apply(this, arguments);
+    };
+    wrappedSave.__dbm2 = true;
+    host.Wick.WickFile.toWickFile = wrappedSave;
+  }
+  if (host.Wick && host.Wick.AutoSave && !host.Wick.AutoSave.save.__dbm2) {
+    var autoSave = host.Wick.AutoSave.save;
+    var wrappedAutoSave = function (project) {
+      if (service.panel && service.panel.alive && service.panel.alive() && service.panel.project() === project) service.panel.flush(true);
+      return autoSave.apply(this, arguments);
+    };
+    wrappedAutoSave.__dbm2 = true;
+    host.Wick.AutoSave.save = wrappedAutoSave;
+  }
+  return service;
+}
+
+    var dbm2Host = installDemBonesMrk2Host(window, "");
+    Bridge.openDemBonesMrk2 = function () { return dbm2Host.open(); };
+
     Bridge.getEditorInfo = getEditorInfo;
 
     Bridge.getSelectionInfo = selectionInfo;
@@ -2802,7 +2939,7 @@ function removeLauncher() {
         // FIX: Do not append cache bust to blob or data URLs
         if (u.indexOf("blob:") === 0 || u.indexOf("data:") === 0) {
             if (window.fetch) {
-                return fetch(u, { cache: "no-store" }).then(function (r) { return r.text(); });
+                return fetch(u, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("http " + String(r.status)); return r.text(); });
             }
             return new Promise(function (resolve, reject) {
                 try {
@@ -2823,7 +2960,7 @@ function removeLauncher() {
         u = u + sep + "t=" + String(nowMs());
 
         if (window.fetch) {
-            return fetch(u, { cache: "no-store" }).then(function (r) { return r.text(); });
+            return fetch(u, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("http " + String(r.status)); return r.text(); });
         }
 
         return new Promise(function (resolve, reject) {
@@ -2843,7 +2980,11 @@ function removeLauncher() {
     }
 
     function setPanelToolHtml(htmlDoc) {
-        showPanel();
+        var openedPanel = ensurePanel();
+        openedPanel.style.display = "block";
+        var launcher = document.getElementById(LAUNCHER_ID);
+        if (launcher) launcher.style.display = "none";
+        if (openedPanel.__LT_toolCloseBR) openedPanel.__LT_toolCloseBR.style.display = "block";
         var fr = document.getElementById(PANEL_IFRAME_ID);
         if (!fr) return { ok: false, reason: "panel iframe missing" };
         try { fr.srcdoc = htmlDoc; } catch (e) { fr.srcdoc = ""; }
@@ -3676,7 +3817,12 @@ function removeLauncher() {
         function renderPanelConfig(cfg) { // FIX
             // Keep the parsed config available and show the icon panel in the iframe
             try { window.__LT_panelCfg = cfg; } catch (e0) { } // FIX: expose loaded panel config
-            try { showJsonIconPanel(cfg); } catch (e) { }
+            // A delayed menu update must not interrupt an open tool.
+            try {
+                var activePanel = document.getElementById(PANEL_ID);
+                var activeClose = activePanel && activePanel.__LT_toolCloseBR;
+                if (!activeClose || activeClose.style.display === "none") showJsonIconPanel(cfg);
+            } catch (e) { }
             try {
                 if (!window.__LT_showIconPanelNow) {
                     window.__LT_showIconPanelNow = function () { // FIX: allow showPanel to force icon panel
@@ -3744,48 +3890,24 @@ function removeLauncher() {
             return uniq;
         }
 
-        function autoLoadPanelConfig() { // FIX: try stored JSON, else try multiple candidate URLs
-            var existing = "";
-            try { existing = getStoredPanelConfigText(); } catch (e0) { existing = ""; }
-
-            if (existing && String(existing).trim()) {
-                try { applyPanelConfigText(String(existing)); } catch (e1) { }
-                return;
-            }
-
+        function autoLoadPanelConfig() {
+            // Keep the saved menu usable while checking GitHub for new tools.
             var candidates = [];
-            try { candidates = getDefaultPanelConfigUrlCandidates(); } catch (e2) { candidates = []; }
-
-            if (!candidates || !candidates.length) return;
-
+            try { candidates = getDefaultPanelConfigUrlCandidates(); } catch (e0) { }
             var i = 0;
-
             function tryNext() {
-                if (i >= candidates.length) {
-                    return;
-                }
-
-                var u = String(candidates[i] || "").trim();
-                i += 1;
-
+                if (i >= candidates.length) return;
+                var u = String(candidates[i++] || "").trim();
                 if (!u) return tryNext();
-
                 fetchText(u).then(function (t) {
-                    // Validate JSON before storing
-                    try {
-                        applyPanelConfigText(String(t));
-                        setStoredPanelConfigText(String(t));
-                        try { localStorage.setItem("LukeToolsPanelConfigUrl", u); } catch (e3) { }
-                    } catch (e4) {
-                        // Bad json, continue to next candidate
-                        tryNext();
-                    }
-                }).catch(function () {
-                    // Not found, continue to next candidate
-                    tryNext();
-                });
+                    var cfg = parsePanelConfig(String(t));
+                    if (!cfg) return tryNext();
+                    setStoredPanelConfigText(String(t));
+                    try { localStorage.setItem("LukeToolsPanelConfigUrl", u); } catch (e1) { }
+                    try { window.__LT_panelCfgObj = cfg; } catch (e2) { }
+                    renderPanelConfig(cfg);
+                }).catch(function () { tryNext(); });
             }
-
             tryNext();
         }
 
@@ -4363,3 +4485,4 @@ if (data.type === "LukeToolsRunJsonTool") {
     }, 1200);
 
 })();
+
